@@ -93,6 +93,21 @@ export function App() {
     });
   }, []);
 
+  // Zoom Handlers
+  const handleZoomIn = useCallback(() => {
+    setZoom(prev => Math.min(5, Math.round((prev * 1.2) * 100) / 100));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom(prev => Math.max(0.1, Math.round((prev / 1.2) * 100) / 100));
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoom(1);
+    setScrollX(0);
+    setScrollY(0);
+  }, []);
+
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
       const next = !prev;
@@ -411,6 +426,23 @@ export function App() {
         return;
       }
 
+      // Zoom Shortcuts: Ctrl + +, Ctrl + -, Ctrl + 0
+      if (isCmdOrCtrl && (key === '=' || key === '+' || e.key === '=' || e.key === '+')) {
+        handleZoomIn();
+        e.preventDefault();
+        return;
+      }
+      if (isCmdOrCtrl && (key === '-' || key === '_' || e.key === '-')) {
+        handleZoomOut();
+        e.preventDefault();
+        return;
+      }
+      if (isCmdOrCtrl && (key === '0' || e.key === '0')) {
+        handleResetZoom();
+        e.preventDefault();
+        return;
+      }
+
       // Tool shortcuts (without Ctrl)
       if (!isCmdOrCtrl) {
         if (key === 'g') setCurrentTool(prev => { toggleGrid(); return prev; });
@@ -428,7 +460,7 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [elements, deleteSelected, handleUndo, handleRedo, copySelected, pasteClipboard, toggleSidebar, toggleGrid, handleToggleFormatting]);
+  }, [elements, deleteSelected, handleUndo, handleRedo, copySelected, pasteClipboard, toggleSidebar, toggleGrid, handleZoomIn, handleZoomOut, handleResetZoom, handleToggleFormatting]);
 
   return (
     <div id="app">
@@ -484,8 +516,6 @@ export function App() {
             canRedo={canRedo}
             onUndo={handleUndo}
             onRedo={handleRedo}
-            showGrid={showGrid}
-            onToggleGrid={toggleGrid}
           />
 
           <Canvas
@@ -511,6 +541,9 @@ export function App() {
             onScrollChange={(x, y) => { setScrollX(x); setScrollY(y); }}
             isDark={isDark}
             showGrid={showGrid}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetZoom={handleResetZoom}
             onRecordHistory={handleRecordHistory}
           />
         </div>
@@ -521,6 +554,9 @@ export function App() {
         zoom={zoom}
         elementCount={elements.length}
         dbStatus={fileManager.dbStatus}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onResetZoom={handleResetZoom}
       />
     </div>
   );

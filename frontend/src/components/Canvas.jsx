@@ -41,6 +41,9 @@ export function Canvas({
   onScrollChange,
   isDark,
   showGrid = false,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
   onRecordHistory
 }) {
   const canvasRef = useRef(null);
@@ -604,6 +607,40 @@ export function Canvas({
     }
   };
 
+  // Centered zoom controls for canvas notes
+  const zoomAtCenter = useCallback((factor) => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const newZoom = Math.max(0.1, Math.min(5, Math.round(zoom * factor * 100) / 100));
+    if (newZoom === zoom) return;
+    const newScrollX = cx - (cx - scrollX) * (newZoom / zoom);
+    const newScrollY = cy - (cy - scrollY) * (newZoom / zoom);
+    onZoomChange(newZoom);
+    onScrollChange(newScrollX, newScrollY);
+  }, [zoom, scrollX, scrollY, onZoomChange, onScrollChange]);
+
+  const handleZoomInAction = () => {
+    zoomAtCenter(1.2);
+  };
+
+  const handleZoomOutAction = () => {
+    zoomAtCenter(1 / 1.2);
+  };
+
+  const handleResetZoomAction = () => {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const newZoom = 1;
+    const newScrollX = cx - (cx - scrollX) * (newZoom / zoom);
+    const newScrollY = cy - (cy - scrollY) * (newZoom / zoom);
+    onZoomChange(newZoom);
+    onScrollChange(newScrollX, newScrollY);
+  };
+
   // Text editor overlay coordinates
   const textEditorPos = textEdit ? canvasToContainer(textEdit.canvasX, textEdit.canvasY) : { x: 0, y: 0 };
   const textEditorStroke = textEdit ? getAdaptiveStroke(strokeColor, isDark) : strokeColor;
@@ -619,6 +656,41 @@ export function Canvas({
         onDoubleClick={handleDoubleClick}
         onWheel={handleWheel}
       />
+
+      {/* Floating Apple-Style Canvas Zoom Widget */}
+      <div className="canvas-zoom-pill" role="toolbar" aria-label="Canvas zoom controls">
+        <button
+          className="canvas-zoom-btn"
+          onClick={handleZoomOutAction}
+          title="Zoom Out (Ctrl -)"
+          aria-label="Zoom Out"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+
+        <button
+          className="canvas-zoom-value"
+          onClick={handleResetZoomAction}
+          title="Reset Zoom to 100% (Ctrl 0)"
+          aria-label="Reset Zoom to 100%"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+
+        <button
+          className="canvas-zoom-btn"
+          onClick={handleZoomInAction}
+          title="Zoom In (Ctrl +)"
+          aria-label="Zoom In"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+      </div>
 
       {textEdit && (
         <textarea

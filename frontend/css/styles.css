@@ -42,10 +42,10 @@
   --danger-light: var(--danger-subtle);
   --success-light: var(--success-subtle);
 
-  /* Layout Dimensions */
-  --header-height: 50px;
-  --toolbar-height: 46px;
-  --statusbar-height: 26px;
+  /* Layout Dimensions — Compact, Slim Heights */
+  --header-height: 40px;
+  --toolbar-height: 36px;
+  --statusbar-height: 24px;
   --sidebar-width: 230px;
 
   /* Corner Radii — Apple Standard (6px–10px) */
@@ -146,14 +146,14 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   A. Application Header (Height: 48–52px)
+   A. Application Header (Height: compact 40px)
    -------------------------------------------------------------------------- */
 #header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: var(--header-height);
-  padding: 0 14px;
+  padding: 0 10px;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
   z-index: 20;
@@ -164,20 +164,20 @@ html, body {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Brand Group: Logo + Wordmark */
 .brand-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: default;
 }
 
@@ -192,7 +192,7 @@ html, body {
 }
 
 .app-title {
-  font-size: 16px;
+  font-size: 14.5px;
   font-weight: 600;
   letter-spacing: -0.3px;
   color: var(--text-primary);
@@ -203,9 +203,9 @@ html, body {
 .db-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  font-size: 11px;
+  gap: 5px;
+  padding: 2px 7px;
+  font-size: 10.5px;
   font-weight: 500;
   border-radius: var(--radius-pill);
   background-color: var(--success-subtle);
@@ -215,8 +215,8 @@ html, body {
 }
 
 .db-indicator .db-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background-color: var(--success);
   flex-shrink: 0;
@@ -246,19 +246,19 @@ html, body {
   100% { opacity: 1; transform: scale(1.15); }
 }
 
-/* Header Buttons */
+/* Header Buttons — Compact Apple Style */
 .header-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
+  gap: 5px;
+  height: 25px;
+  padding: 0 8px;
   background-color: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
@@ -281,22 +281,27 @@ html, body {
 }
 
 .header-btn svg {
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
 .header-btn-label {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .sidebar-toggle-btn {
-  padding: 0 8px;
+  padding: 0;
+  width: 26px;
+  height: 25px;
+  justify-content: center;
 }
 
 .header-separator {
   width: 1px;
-  height: 18px;
+  height: 14px;
   background-color: var(--border);
-  margin: 0 4px;
+  margin: 0 2px;
 }
 
 /* --------------------------------------------------------------------------
@@ -339,8 +344,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 42px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -707,16 +712,16 @@ html, body {
 }
 
 /* --------------------------------------------------------------------------
-   C. Drawing Toolbar (Height: 44–48px)
+   C. Drawing Toolbar (Height: compact 36px)
    -------------------------------------------------------------------------- */
 #toolbar {
   display: flex;
   align-items: center;
+  justify-content: center;
   height: var(--toolbar-height);
-  padding: 0 12px;
+  padding: 0 8px;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border);
-  gap: 4px;
   overflow-x: auto;
   overflow-y: hidden;
   flex-shrink: 0;
@@ -724,34 +729,49 @@ html, body {
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
+.toolbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
 .tool-group {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .toolbar-separator {
   width: 1px;
-  height: 22px;
+  height: 16px;
   background-color: var(--border);
-  margin: 0 6px;
+  margin: 0 4px;
   flex-shrink: 0;
 }
 
-/* Individual Tool Button — 32x32px Hit Area */
+/* Individual Tool Button — Compact 26x26px Hit Area */
 .tool-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background-color: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.tool-btn svg {
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
@@ -775,7 +795,7 @@ html, body {
 /* Text formatting specific buttons */
 .text-style-btn {
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -796,7 +816,7 @@ html, body {
 .text-formatting-subgroup {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 /* Appearance Controls: Color Swatches & Width */
@@ -809,9 +829,9 @@ html, body {
 .color-swatch-label {
   display: flex;
   align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 6px;
+  gap: 4px;
+  height: 24px;
+  padding: 0 5px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background-color: var(--surface);
@@ -825,8 +845,8 @@ html, body {
 }
 
 .swatch-preview {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.15);
   display: inline-block;
@@ -849,7 +869,7 @@ html, body {
 }
 
 .swatch-text {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -866,20 +886,20 @@ html, body {
 .no-fill-checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0 2px;
 }
 
 .no-fill-checkbox input[type="checkbox"] {
   accent-color: var(--accent);
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   cursor: pointer;
 }
 
 .checkbox-label {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-secondary);
   user-select: none;
   white-space: nowrap;
@@ -889,12 +909,12 @@ html, body {
 .width-control {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 6px;
+  gap: 4px;
+  padding: 0 4px;
 }
 
 .width-label {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-secondary);
   user-select: none;
 }
@@ -902,8 +922,8 @@ html, body {
 .width-control input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  width: 60px;
-  height: 4px;
+  width: 50px;
+  height: 3px;
   border-radius: var(--radius-pill);
   background-color: var(--border);
   outline: none;
@@ -913,8 +933,8 @@ html, body {
 .width-control input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: var(--accent);
   border: 1.5px solid var(--surface);
@@ -928,10 +948,10 @@ html, body {
 }
 
 .width-badge {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--text-primary);
-  min-width: 14px;
+  min-width: 12px;
   text-align: center;
 }
 
@@ -942,14 +962,14 @@ html, body {
 }
 
 .toolbar-select {
-  height: 28px;
-  padding: 0 8px;
+  height: 24px;
+  padding: 0 5px;
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   outline: none;
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
@@ -964,11 +984,11 @@ html, body {
 }
 
 .font-family-select {
-  max-width: 165px;
+  max-width: 148px;
 }
 
 .font-size-select {
-  width: 62px;
+  width: 52px;
 }
 
 /* --------------------------------------------------------------------------
@@ -1014,6 +1034,72 @@ html, body {
   word-break: break-word;
 }
 
+/* Floating Apple-Style Canvas Zoom Widget */
+.canvas-zoom-pill {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+  padding: 2px 4px;
+  gap: 2px;
+  z-index: 50;
+  user-select: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.canvas-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background-color: transparent;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.canvas-zoom-btn:hover {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.canvas-zoom-btn:active {
+  transform: scale(0.92);
+}
+
+.canvas-zoom-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 26px;
+  padding: 0 4px;
+  border: none;
+  background-color: transparent;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.canvas-zoom-value:hover {
+  background-color: var(--surface-secondary);
+  color: var(--accent);
+}
+
 /* --------------------------------------------------------------------------
    E. Status Bar (Height: 24–28px)
    -------------------------------------------------------------------------- */
@@ -1036,6 +1122,53 @@ html, body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.status-zoom-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.status-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.status-zoom-btn:hover {
+  background-color: var(--surface-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.status-zoom-text-btn {
+  background: transparent;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: var(--radius-xs);
+  transition: color var(--transition-fast);
+}
+
+.status-zoom-text-btn:hover {
+  color: var(--accent);
 }
 
 .statusbar-right {

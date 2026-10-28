@@ -1,6 +1,14 @@
 import React from 'react';
 
-export function StatusBar({ tool, zoom, elementCount, dbStatus }) {
+export function StatusBar({
+  tool,
+  zoom,
+  elementCount,
+  dbStatus,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom
+}) {
   const toolName = tool ? (tool === 'roundRect' ? 'Rounded Rectangle' : (tool.charAt(0).toUpperCase() + tool.slice(1))) : 'Select';
   const zoomPct = Math.round(zoom * 100) + '%';
 
@@ -26,9 +34,36 @@ export function StatusBar({ tool, zoom, elementCount, dbStatus }) {
 
         <span className="status-separator"></span>
 
-        <span id="status-zoom" className="status-item">
+        <span id="status-zoom" className="status-item status-zoom-controls">
           <span className="status-label">Zoom:</span>
-          <span className="status-value">{zoomPct}</span>
+          {onZoomOut && (
+            <button
+              className="status-zoom-btn"
+              onClick={onZoomOut}
+              title="Zoom out (Ctrl -)"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+          )}
+          <button
+            className="status-zoom-text-btn"
+            onClick={onResetZoom}
+            title="Reset zoom to 100% (Ctrl 0)"
+            aria-label="Reset zoom"
+          >
+            {zoomPct}
+          </button>
+          {onZoomIn && (
+            <button
+              className="status-zoom-btn"
+              onClick={onZoomIn}
+              title="Zoom in (Ctrl +)"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+          )}
         </span>
 
         <span className="status-separator"></span>

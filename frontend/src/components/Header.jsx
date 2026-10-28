@@ -56,7 +56,7 @@ export function Header({
         </button>
 
         <div className="brand-group">
-          <AppLogo size={24} />
+          <AppLogo size={20} />
           <span className="app-title">SuperNotes</span>
         </div>
 
