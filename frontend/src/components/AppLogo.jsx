@@ -60,3 +60,4 @@ export function AppLogo({ size = 30, className = 'app-logo-icon' }) {
     </svg>
   );
 }
+
