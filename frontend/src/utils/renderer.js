@@ -2,13 +2,13 @@ import rough from 'roughjs';
 import { getBounds, getHandles, getWrappedTextLines } from './elements.js';
 
 export function getAdaptiveStroke(color, isDark) {
-  if (isDark && (color === '#1e1e1e' || color === '#000000')) {
-    return '#f4f4f5';
+  if (isDark && (color === '#1e1e1e' || color === '#000000' || color === '#252525')) {
+    return '#f2f2f0';
   }
-  if (!isDark && (color === '#f4f4f5' || color === '#ffffff')) {
-    return '#1e1e1e';
+  if (!isDark && (color === '#f4f4f5' || color === '#f2f2f0' || color === '#ffffff')) {
+    return '#252525';
   }
-  return color || '#1e1e1e';
+  return color || (isDark ? '#f2f2f0' : '#252525');
 }
 
 export function getAdaptiveFill(color, isDark) {
@@ -301,8 +301,9 @@ export function renderSelection(ctx, selected, isDark) {
   if (!selected || selected.length === 0) return;
 
   ctx.save();
-  const accentColor = isDark ? '#8b88f8' : '#6965db';
-  const handleBg = isDark ? '#1e1e24' : '#ffffff';
+  // Apple-inspired Accent tokens
+  const accentColor = isDark ? '#7AA7FF' : '#3478F6';
+  const handleBg = isDark ? '#202022' : '#FFFFFF';
 
   for (let i = 0; i < selected.length; i++) {
     const el = selected[i];
@@ -345,8 +346,8 @@ export function renderMarquee(ctx, box, isDark) {
   const w = Math.abs(box.currentX - box.startX);
   const h = Math.abs(box.currentY - box.startY);
 
-  const accentColor = isDark ? '#8b88f8' : '#6965db';
-  ctx.fillStyle = isDark ? 'rgba(139, 136, 248, 0.15)' : 'rgba(105, 101, 219, 0.1)';
+  const accentColor = isDark ? '#7AA7FF' : '#3478F6';
+  ctx.fillStyle = isDark ? 'rgba(122, 167, 255, 0.12)' : 'rgba(52, 120, 246, 0.08)';
   ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = accentColor;
   ctx.lineWidth = 1;
@@ -355,14 +356,16 @@ export function renderMarquee(ctx, box, isDark) {
   ctx.restore();
 }
 
-export function drawGrid(ctx, viewWidth, viewHeight, zoom, scrollX, scrollY, isDark) {
-  const gridSize = 20;
+export function drawGrid(ctx, viewWidth, viewHeight, zoom, scrollX, scrollY, isDark, showGrid = false) {
+  if (!showGrid) return;
+  const gridSize = 24;
   const startX = Math.floor((-scrollX / zoom) / gridSize) * gridSize;
   const startY = Math.floor((-scrollY / zoom) / gridSize) * gridSize;
   const endX = startX + (viewWidth / zoom) + gridSize * 2;
   const endY = startY + (viewHeight / zoom) + gridSize * 2;
 
-  ctx.fillStyle = isDark ? '#282828' : '#e2e8f0';
+  // Tiny, low-contrast dots that do not interfere with handwriting
+  ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.10)';
   for (let x = startX; x < endX; x += gridSize) {
     for (let y = startY; y < endY; y += gridSize) {
       ctx.fillRect(x, y, 1, 1);

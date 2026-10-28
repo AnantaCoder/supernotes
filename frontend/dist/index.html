@@ -2,14 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SuperNotes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SuperNotes — Premium Note & Whiteboard Workspace</title>
+  
+  <!-- Apple-inspired theme flash prevention -->
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem('supernotes_theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var isDark = savedTheme ? (savedTheme === 'dark') : prefersDark;
+        if (isDark) {
+          document.documentElement.classList.add('dark-mode');
+        } else {
+          document.documentElement.classList.remove('dark-mode');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Google Fonts: Inter (UI font) + Handwriting fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Indie+Flower&family=Kalam:wght@400;700&family=Patrick+Hand&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@400;700&family=Indie+Flower&family=Kalam:wght@400;700&family=Patrick+Hand&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <script type="module" crossorigin src="/assets/index-BNjA2OcE.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-NZZ78Ipa.css">
+  <script type="module" crossorigin src="/assets/index-CmnU_7P2.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-D-b3aw2v.css">
 </head>
 <body>
   <div id="root"></div>

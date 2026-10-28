@@ -12,12 +12,19 @@ import { measureText, getSelectionBounds, move } from './utils/elements.js';
 export function App() {
   // Theme state
   const [isDark, setIsDark] = useState(() => {
-    return localStorage.getItem('supernotes_theme') === 'dark';
+    const saved = localStorage.getItem('supernotes_theme');
+    if (saved) return saved === 'dark';
+    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
   // Sidebar collapse state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem('supernotes_sidebar_collapsed') === 'true';
+  });
+
+  // Optional grid visibility state (default is false: clean canvas without dotted grid)
+  const [showGrid, setShowGrid] = useState(() => {
+    return localStorage.getItem('supernotes_show_grid') === 'true';
   });
 
   // Canvas Viewport State
@@ -26,7 +33,7 @@ export function App() {
   const [currentTool, setCurrentTool] = useState('select');
 
   // Styling & Formatting State
-  const [strokeColor, setStrokeColor] = useState(isDark ? '#f4f4f5' : '#1e1e1e');
+  const [strokeColor, setStrokeColor] = useState(isDark ? '#f2f2f0' : '#252525');
   const [fillColor, setFillColor] = useState('#a5d8ff');
   const [noFill, setNoFill] = useState(true);
   const [strokeWidth, setStrokeWidth] = useState(2);
@@ -59,9 +66,10 @@ export function App() {
     }
   });
 
-  // Apply dark mode class to body & update theme
+  // Apply dark mode class to root & body
   useEffect(() => {
     document.body.classList.toggle('dark-mode', isDark);
+    document.documentElement.classList.toggle('dark-mode', isDark);
     localStorage.setItem('supernotes_theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
@@ -69,10 +77,18 @@ export function App() {
     setIsDark(prev => {
       const next = !prev;
       setStrokeColor(curr => {
-        if (!prev && curr === '#1e1e1e') return '#f4f4f5';
-        if (prev && curr === '#f4f4f5') return '#1e1e1e';
+        if (!prev && (curr === '#252525' || curr === '#1e1e1e')) return '#f2f2f0';
+        if (prev && (curr === '#f2f2f0' || curr === '#f4f4f5')) return '#252525';
         return curr;
       });
+      return next;
+    });
+  }, []);
+
+  const toggleGrid = useCallback(() => {
+    setShowGrid(prev => {
+      const next = !prev;
+      localStorage.setItem('supernotes_show_grid', next ? 'true' : 'false');
       return next;
     });
   }, []);
@@ -397,7 +413,8 @@ export function App() {
 
       // Tool shortcuts (without Ctrl)
       if (!isCmdOrCtrl) {
-        if (key === 'v' || key === '1') setCurrentTool('select');
+        if (key === 'g') setCurrentTool(prev => { toggleGrid(); return prev; });
+        else if (key === 'v' || key === '1') setCurrentTool('select');
         else if (key === 'r' || key === '2') setCurrentTool('rectangle');
         else if (key === 'u' || key === '9') setCurrentTool('roundRect');
         else if (key === 'o' || key === '3') setCurrentTool('ellipse');
@@ -411,7 +428,7 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [elements, deleteSelected, handleUndo, handleRedo, copySelected, pasteClipboard, toggleSidebar, handleToggleFormatting]);
+  }, [elements, deleteSelected, handleUndo, handleRedo, copySelected, pasteClipboard, toggleSidebar, toggleGrid, handleToggleFormatting]);
 
   return (
     <div id="app">
@@ -421,6 +438,8 @@ export function App() {
         dbStatus={fileManager.dbStatus}
         onToggleSidebar={toggleSidebar}
         sidebarCollapsed={sidebarCollapsed}
+        showGrid={showGrid}
+        onToggleGrid={toggleGrid}
         onExport={() => fileManager.exportCurrentFile({ elements, scrollX, scrollY, zoom })}
         onImport={(file) => fileManager.importFile(file)}
       />
@@ -465,6 +484,8 @@ export function App() {
             canRedo={canRedo}
             onUndo={handleUndo}
             onRedo={handleRedo}
+            showGrid={showGrid}
+            onToggleGrid={toggleGrid}
           />
 
           <Canvas
@@ -489,6 +510,7 @@ export function App() {
             scrollY={scrollY}
             onScrollChange={(x, y) => { setScrollX(x); setScrollY(y); }}
             isDark={isDark}
+            showGrid={showGrid}
             onRecordHistory={handleRecordHistory}
           />
         </div>

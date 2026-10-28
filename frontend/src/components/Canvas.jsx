@@ -40,6 +40,7 @@ export function Canvas({
   scrollY,
   onScrollChange,
   isDark,
+  showGrid = false,
   onRecordHistory
 }) {
   const canvasRef = useRef(null);
@@ -106,8 +107,8 @@ export function Canvas({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    // 1. Grid
-    drawGrid(ctx, width, height, zoom, scrollX, scrollY, isDark);
+    // 1. Grid (optional, low-contrast, off by default)
+    drawGrid(ctx, width, height, zoom, scrollX, scrollY, isDark, showGrid);
 
     // 2. Viewport transform
     ctx.translate(scrollX, scrollY);
@@ -134,7 +135,7 @@ export function Canvas({
     }
 
     ctx.restore();
-  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, textEdit]);
+  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, showGrid, textEdit]);
 
   // Request animation frame render
   useEffect(() => {

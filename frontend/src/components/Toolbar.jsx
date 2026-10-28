@@ -22,130 +22,173 @@ export function Toolbar({
   canUndo,
   canRedo,
   onUndo,
-  onRedo
+  onRedo,
+  showGrid,
+  onToggleGrid
 }) {
   return (
-    <div id="toolbar">
+    <div id="toolbar" role="toolbar" aria-label="Drawing and formatting tools">
+      {/* Group 1 — Selection and drawing */}
       <div className="tool-group" id="tool-buttons">
         <button
           className={`tool-btn ${currentTool === 'select' ? 'active' : ''}`}
           onClick={() => onSetTool('select')}
-          title="Select (V)"
+          title="Select / Move / Resize (V or 1)"
+          aria-label="Select tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path d="M5 3l14 11-6 0 3.5 7-2.5 1-3.5-7-5.5 4z" fill="currentColor" />
+          {/* Apple-style cursor pointer */}
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 3.5l14 10.5-6.5.5 3.5 7-2.5 1-3.5-7-5 4V3.5z" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'rectangle' ? 'active' : ''}`}
           onClick={() => onSetTool('rectangle')}
-          title="Rectangle (R)"
+          title="Rectangle (R or 2)"
+          aria-label="Rectangle tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <rect x="4" y="6" width="16" height="12" fill="none" stroke="currentColor" strokeWidth="2" rx="1" />
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'roundRect' ? 'active' : ''}`}
           onClick={() => onSetTool('roundRect')}
-          title="Rounded Rectangle (U)"
+          title="Rounded Rectangle (U or 9)"
+          aria-label="Rounded rectangle tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <rect x="4" y="6" width="16" height="12" rx="5" ry="5" fill="none" stroke="currentColor" strokeWidth="2" />
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="3.5" y="5.5" width="17" height="13" rx="5" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'ellipse' ? 'active' : ''}`}
           onClick={() => onSetTool('ellipse')}
-          title="Ellipse (O)"
+          title="Ellipse / Circle (O or 3)"
+          aria-label="Ellipse tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <ellipse cx="12" cy="12" rx="9" ry="6" fill="none" stroke="currentColor" strokeWidth="2" />
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <ellipse cx="12" cy="12" rx="8.5" ry="6.5" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'diamond' ? 'active' : ''}`}
           onClick={() => onSetTool('diamond')}
-          title="Diamond (D)"
+          title="Diamond (D or 4)"
+          aria-label="Diamond tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <rect x="5" y="5" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" transform="rotate(45 12 12)" />
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M12 3.5L20.5 12 12 20.5 3.5 12z" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'line' ? 'active' : ''}`}
           onClick={() => onSetTool('line')}
-          title="Line (L)"
+          title="Line (L or 5)"
+          aria-label="Line tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" strokeWidth="2" />
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <line x1="4.5" y1="19.5" x2="19.5" y2="4.5" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'arrow' ? 'active' : ''}`}
           onClick={() => onSetTool('arrow')}
-          title="Arrow (A)"
+          title="Arrow (A or 6)"
+          aria-label="Arrow tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" strokeWidth="2" />
-            <polyline points="13,5 19,5 19,11" fill="none" stroke="currentColor" strokeWidth="2" />
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4.5" y1="19.5" x2="19.5" y2="4.5" />
+            <polyline points="13 4.5 19.5 4.5 19.5 11" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'freehand' ? 'active' : ''}`}
           onClick={() => onSetTool('freehand')}
-          title="Pencil (P)"
+          title="Handwriting Pencil (P or 7)"
+          aria-label="Freehand pencil tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path d="M4 17 Q8 9 12 13 Q16 17 20 9" fill="none" stroke="currentColor" strokeWidth="2" />
+          {/* Apple-style stylus / pencil outline */}
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
           </svg>
         </button>
+
         <button
           className={`tool-btn ${currentTool === 'text' ? 'active' : ''}`}
           onClick={() => onSetTool('text')}
-          title="Text (T)"
+          title="Text Box (T or 8)"
+          aria-label="Text tool"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <text x="12" y="17" textAnchor="middle" fontSize="16" fontWeight="bold" fill="currentColor">T</text>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 7 4 4 20 4 20 7" />
+            <line x1="12" y1="4" x2="12" y2="20" />
+            <line x1="9" y1="20" x2="15" y2="20" />
           </svg>
         </button>
       </div>
 
       <div className="toolbar-separator"></div>
 
-      <div className="tool-group">
-        <label className="color-label" title="Stroke color">
+      {/* Group 2 — Appearance */}
+      <div className="tool-group" id="appearance-controls">
+        {/* Stroke Color Swatch */}
+        <div className="color-swatch-wrapper" title={`Stroke Color: ${strokeColor}`}>
+          <label className="color-swatch-label" htmlFor="stroke-color">
+            <span className="swatch-preview" style={{ backgroundColor: strokeColor }}></span>
+            <span className="swatch-text">Stroke</span>
+          </label>
           <input
             type="color"
             id="stroke-color"
+            className="hidden-color-input"
             value={strokeColor}
             onChange={(e) => onChangeStrokeColor(e.target.value)}
           />
-        </label>
-        <label className="color-label" title="Fill color">
+        </div>
+
+        {/* Fill Color Swatch */}
+        <div className="color-swatch-wrapper" title={noFill ? "No Fill (click to set fill color)" : `Fill Color: ${fillColor}`}>
+          <label className="color-swatch-label" htmlFor="fill-color">
+            <span
+              className={`swatch-preview ${noFill ? 'no-fill-swatch' : ''}`}
+              style={{ backgroundColor: noFill ? 'transparent' : fillColor }}
+            >
+              {noFill && <span className="swatch-slash"></span>}
+            </span>
+            <span className="swatch-text">Fill</span>
+          </label>
           <input
             type="color"
             id="fill-color"
-            value={fillColor}
+            className="hidden-color-input"
+            value={noFill ? '#a5d8ff' : fillColor}
             onChange={(e) => onChangeFillColor(e.target.value)}
           />
-        </label>
-        <label className="no-fill-label" title="Toggle fill">
+        </div>
+
+        {/* No Fill Toggle */}
+        <label className="no-fill-checkbox" title="Toggle shape fill">
           <input
             type="checkbox"
             id="no-fill"
             checked={noFill}
             onChange={(e) => onToggleNoFill(e.target.checked)}
           />
-          <span>No fill</span>
+          <span className="checkbox-custom"></span>
+          <span className="checkbox-label">No fill</span>
         </label>
-      </div>
 
-      <div className="toolbar-separator"></div>
-
-      <div className="tool-group">
-        <label className="width-label" title="Stroke width">
-          <span>Width:</span>
+        {/* Stroke Width */}
+        <div className="width-control" title={`Stroke width: ${strokeWidth}px`}>
+          <span className="width-label">Width</span>
           <input
             type="range"
             id="stroke-width"
@@ -154,17 +197,18 @@ export function Toolbar({
             value={strokeWidth}
             onChange={(e) => onChangeStrokeWidth(parseInt(e.target.value, 10) || 2)}
           />
-          <span id="stroke-width-value">{strokeWidth}</span>
-        </label>
+          <span id="stroke-width-value" className="width-badge">{strokeWidth}</span>
+        </div>
       </div>
 
       <div className="toolbar-separator"></div>
 
+      {/* Group 3 — Writing */}
       <div className="tool-group" id="font-controls">
-        <label className="font-select-label" title="Font Family">
+        <label className="font-select-label" title="Handwriting & Typography Style">
           <select
             id="font-family"
-            className="toolbar-select"
+            className="toolbar-select font-family-select"
             value={fontFamily}
             onChange={(e) => onChangeFontFamily(e.target.value)}
           >
@@ -175,10 +219,11 @@ export function Toolbar({
             <option value="'Fira Code', monospace">💻 Monospace (Code)</option>
           </select>
         </label>
+
         <label className="font-select-label" title="Font Size">
           <select
             id="font-size"
-            className="toolbar-select"
+            className="toolbar-select font-size-select"
             value={fontSize}
             onChange={(e) => onChangeFontSize(parseInt(e.target.value, 10) || 24)}
           >
@@ -188,48 +233,51 @@ export function Toolbar({
             <option value="48">48px</option>
           </select>
         </label>
+
+        <div className="text-formatting-subgroup">
+          <button
+            id="btn-bold"
+            className={`tool-btn text-style-btn ${isBold ? 'active' : ''}`}
+            onClick={() => onToggleFormatting('bold')}
+            title="Bold (Ctrl+B)"
+            aria-label="Bold text"
+          >
+            <b>B</b>
+          </button>
+          <button
+            id="btn-italic"
+            className={`tool-btn text-style-btn ${isItalic ? 'active' : ''}`}
+            onClick={() => onToggleFormatting('italic')}
+            title="Italic (Ctrl+I)"
+            aria-label="Italic text"
+          >
+            <i>I</i>
+          </button>
+          <button
+            id="btn-underline"
+            className={`tool-btn text-style-btn ${isUnderline ? 'active' : ''}`}
+            onClick={() => onToggleFormatting('underline')}
+            title="Underline (Ctrl+U)"
+            aria-label="Underline text"
+          >
+            <u>U</u>
+          </button>
+        </div>
       </div>
 
       <div className="toolbar-separator"></div>
 
-      <div className="tool-group" id="text-formatting-group">
-        <button
-          id="btn-bold"
-          className={`tool-btn text-style-btn ${isBold ? 'active' : ''}`}
-          onClick={() => onToggleFormatting('bold')}
-          title="Bold (Ctrl+B)"
-        >
-          <b>B</b>
-        </button>
-        <button
-          id="btn-italic"
-          className={`tool-btn text-style-btn ${isItalic ? 'active' : ''}`}
-          onClick={() => onToggleFormatting('italic')}
-          title="Italic (Ctrl+I)"
-        >
-          <i>I</i>
-        </button>
-        <button
-          id="btn-underline"
-          className={`tool-btn text-style-btn ${isUnderline ? 'active' : ''}`}
-          onClick={() => onToggleFormatting('underline')}
-          title="Underline (Ctrl+U)"
-        >
-          <u>U</u>
-        </button>
-      </div>
-
-      <div className="toolbar-separator"></div>
-
-      <div className="tool-group">
+      {/* Group 4 — History */}
+      <div className="tool-group" id="history-controls">
         <button
           id="btn-undo"
           className="tool-btn"
           disabled={!canUndo}
           onClick={onUndo}
           title="Undo (Ctrl+Z)"
+          aria-label="Undo"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="1 4 1 10 7 10" />
             <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
           </svg>
@@ -239,15 +287,36 @@ export function Toolbar({
           className="tool-btn"
           disabled={!canRedo}
           onClick={onRedo}
-          title="Redo (Ctrl+Shift+Z)"
+          title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
+          aria-label="Redo"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10" />
           </svg>
         </button>
       </div>
+
+      {/* Optional Group 5 — Grid Toggle if available */}
+      {onToggleGrid && (
+        <>
+          <div className="toolbar-separator"></div>
+          <div className="tool-group" id="canvas-view-controls">
+            <button
+              id="toolbar-btn-grid"
+              className={`tool-btn ${showGrid ? 'active' : ''}`}
+              onClick={onToggleGrid}
+              title={showGrid ? "Hide Grid (G)" : "Show Grid (G)"}
+              aria-label="Toggle Grid"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeDasharray="1.5 2.5" />
+              </svg>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
-
