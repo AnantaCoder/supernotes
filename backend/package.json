@@ -1,0 +1,10 @@
+{
+  "name": "supernotes-backend",
+  "version": "1.0.0",
+  "description": "SuperNotes backend with SQLite storage",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
+

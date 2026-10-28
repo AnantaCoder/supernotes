@@ -1,0 +1,31 @@
+{
+  "name": "supernotes",
+  "version": "1.0.0",
+  "description": "SuperNotes - Lightweight whiteboard & diagram app with SQLite storage",
+  "private": true,
+  "scripts": {
+    "dev": "node run-dev.js",
+    "start": "node backend/server.js",
+    "build": "npm --prefix frontend run build",
+    "backend": "node backend/server.js",
+    "frontend": "npm --prefix frontend run dev",
+    "test": "node -e \"const db = require('./backend/db'); console.log('SQLite DB tests OK, files count:', db.listFiles().length);\""
+  },
+  "keywords": [
+    "notes",
+    "whiteboard",
+    "diagram",
+    "sqlite",
+    "canvas",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "roughjs": "^4.6.6",
+    "vite": "^8.3.5"
+  }
+}
