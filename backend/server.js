@@ -292,13 +292,29 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
+function openInChrome(url) {
+  const chromePaths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe')
+  ];
+  const chromeExe = chromePaths.find(p => fs.existsSync(p));
+  if (chromeExe) {
+    exec(`"${chromeExe}" --app=${url}`, err => {
+      if (err) exec(`start ${url}`, () => {});
+    });
+  } else {
+    exec(`start ${url}`, () => {});
+  }
+}
+
 if (require.main === module) {
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       const url = `http://localhost:${PORT}`;
-      console.log(`\nSuperNotes is already running at ${url}. Opening in browser...`);
+      console.log(`\nSuperNotes is already running at ${url}. Opening in Chrome...`);
       if (process.env.NO_OPEN !== 'true' && !process.env.CI) {
-        exec(`start ${url}`, () => {});
+        openInChrome(url);
       }
       setTimeout(() => process.exit(0), 400);
     } else {
@@ -315,7 +331,7 @@ if (require.main === module) {
     console.log(`========================================\n`);
 
     if (process.env.NO_OPEN !== 'true' && !process.env.CI) {
-      exec(`start ${url}`, () => {});
+      openInChrome(url);
     }
   });
 }
