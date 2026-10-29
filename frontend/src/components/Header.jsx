@@ -9,6 +9,8 @@ export function Header({
   sidebarCollapsed,
   showGrid,
   onToggleGrid,
+  isReadingMode,
+  onToggleReadingMode,
   onExport,
   onImport
 }) {
@@ -84,6 +86,22 @@ export function Header({
               <path d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeDasharray="1.5 2.5" />
             </svg>
             <span className="header-btn-label">Grid</span>
+          </button>
+        )}
+
+        {onToggleReadingMode && (
+          <button
+            id="btn-reading-mode-toggle"
+            className={`header-btn reading-mode-btn ${isReadingMode ? 'active' : ''}`}
+            onClick={onToggleReadingMode}
+            title={isReadingMode ? "Exit Reading Mode" : "Enter Reading Mode (Read Only)"}
+            aria-label="Toggle Reading Mode"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
+            <span className="header-btn-label">{isReadingMode ? 'Reading' : 'Read'}</span>
           </button>
         )}
 

@@ -132,10 +132,9 @@ export function Canvas({
   onScrollChange,
   isDark,
   showGrid = false,
-  onZoomIn,
-  onZoomOut,
-  onResetZoom,
-  onRecordHistory
+  onRecordHistory,
+  isReadingMode = false,
+  onToggleReadingMode
 }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -248,23 +247,25 @@ export function Canvas({
       renderElement(ctx, rc, regularElements[i], isDark);
     }
 
-    // 4. Snap indicators (connection points on hovered shape + nearest point highlight)
-    const snap = snapStateRef.current;
-    if (snap.hoveredPoints.length > 0) {
-      renderHoveredConnectionPoints(ctx, snap.hoveredPoints, snap.nearestPoint, isDark);
-    }
+    if (!isReadingMode) {
+      // 4. Snap indicators (connection points on hovered shape + nearest point highlight)
+      const snap = snapStateRef.current;
+      if (snap.hoveredPoints.length > 0) {
+        renderHoveredConnectionPoints(ctx, snap.hoveredPoints, snap.nearestPoint, isDark);
+      }
 
-    // 5. Selection
-    const selectedElements = elements.filter(el => selectedIds.has(el.id));
-    renderSelection(ctx, selectedElements, isDark);
+      // 5. Selection
+      const selectedElements = elements.filter(el => selectedIds.has(el.id));
+      renderSelection(ctx, selectedElements, isDark);
 
-    // 6. Marquee
-    if (interactionRef.current.selectionBox) {
-      renderMarquee(ctx, interactionRef.current.selectionBox, isDark);
+      // 6. Marquee
+      if (interactionRef.current.selectionBox) {
+        renderMarquee(ctx, interactionRef.current.selectionBox, isDark);
+      }
     }
 
     ctx.restore();
-  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, showGrid, textEdit, snapVersion]);
+  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, showGrid, textEdit, snapVersion, isReadingMode]);
 
   useEffect(() => {
     let animId = requestAnimationFrame(renderCanvas);
@@ -299,6 +300,12 @@ export function Canvas({
   }, [textEdit]);
 
   useEffect(() => {
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = isReadingMode ? 'grab' : 'default';
+    }
+  }, [isReadingMode]);
+
+  useEffect(() => {
     if (textareaRef.current && textEdit) {
       const textarea = textareaRef.current;
       textarea.style.height = 'auto';
@@ -326,7 +333,7 @@ export function Canvas({
           type: 'text',
           text: textEdit.text || 'W',
           fontSize: textEdit.fontSize || 24,
-          fontFamily: textEdit.fontFamily || "'Caveat', cursive",
+          fontFamily: textEdit.fontFamily || "'Patrick Hand', cursive",
           bold: textEdit.bold,
           italic: textEdit.italic,
           hasCustomWidth: false
@@ -468,6 +475,20 @@ export function Canvas({
   const handlePointerDown = (e) => {
     if (textEdit) commitTextEditor();
 
+    if (isReadingMode) {
+      if (e.button === 0 || e.button === 1 || interactionRef.current.spacePressed) {
+        const pt = screenToCanvas(e.clientX, e.clientY);
+        const inter = interactionRef.current;
+        inter.isInteracting = true;
+        inter.type = 'panning';
+        inter.startPoint = { x: pt.x, y: pt.y };
+        inter.lastPoint = { x: pt.x, y: pt.y };
+        inter.lastScreenPoint = { x: e.clientX, y: e.clientY };
+        if (canvasRef.current) canvasRef.current.style.cursor = 'grabbing';
+      }
+      return;
+    }
+
     if (e.button !== 0 && e.button !== 1 && !interactionRef.current.spacePressed) {
       return;
     }
@@ -579,7 +600,7 @@ export function Canvas({
         fillColor: defaultBg,
         strokeColor: defaultBorder,
         fontSize: fontSize || 20,
-        fontFamily: fontFamily || "'Caveat', cursive",
+        fontFamily: fontFamily || "'Patrick Hand', cursive",
         text: '',
         tint: 'yellow'
       }, { strokeColor, fillColor, strokeWidth, fontSize, fontFamily, isDark });
@@ -621,6 +642,19 @@ export function Canvas({
   };
 
   const handlePointerMove = (e) => {
+    if (isReadingMode) {
+      const inter = interactionRef.current;
+      if (inter.isInteracting && inter.type === 'panning') {
+        const pdx = e.clientX - inter.lastScreenPoint.x;
+        const pdy = e.clientY - inter.lastScreenPoint.y;
+        inter.lastScreenPoint = { x: e.clientX, y: e.clientY };
+        onScrollChange(scrollX + pdx, scrollY + pdy);
+      } else if (canvasRef.current) {
+        canvasRef.current.style.cursor = 'grab';
+      }
+      return;
+    }
+
     const pt = screenToCanvas(e.clientX, e.clientY);
     const inter = interactionRef.current;
 
@@ -779,6 +813,14 @@ export function Canvas({
     const inter = interactionRef.current;
     if (!inter.isInteracting) return;
 
+    if (isReadingMode) {
+      inter.isInteracting = false;
+      inter.type = null;
+      inter.hasMoved = false;
+      if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
+      return;
+    }
+
     const type = inter.type;
     const hadMoved = inter.hasMoved;
     inter.isInteracting = false;
@@ -874,6 +916,7 @@ export function Canvas({
   };
 
   const handleDoubleClick = (e) => {
+    if (isReadingMode) return;
     const pt = screenToCanvas(e.clientX, e.clientY);
     const hitEditable = [...elements].reverse().find(el =>
       (el.type === 'text' || el.type === 'stickyNote' || ['cylinder', 'queue', 'cloud', 'cache'].includes(el.type)) &&
@@ -911,32 +954,6 @@ export function Canvas({
     } else {
       onScrollChange(scrollX - e.deltaX, scrollY - e.deltaY);
     }
-  };
-
-  const zoomAtCenter = useCallback((factor) => {
-    if (!canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
-    const newZoom = Math.max(0.1, Math.min(5, Math.round(zoom * factor * 100) / 100));
-    if (newZoom === zoom) return;
-    const newScrollX = cx - (cx - scrollX) * (newZoom / zoom);
-    const newScrollY = cy - (cy - scrollY) * (newZoom / zoom);
-    onZoomChange(newZoom);
-    onScrollChange(newScrollX, newScrollY);
-  }, [zoom, scrollX, scrollY, onZoomChange, onScrollChange]);
-
-  const handleZoomInAction = () => zoomAtCenter(1.2);
-  const handleZoomOutAction = () => zoomAtCenter(1 / 1.2);
-  const handleResetZoomAction = () => {
-    if (!canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
-    const newScrollX = cx - (cx - scrollX) * (1 / zoom);
-    const newScrollY = cy - (cy - scrollY) * (1 / zoom);
-    onZoomChange(1);
-    onScrollChange(newScrollX, newScrollY);
   };
 
   const selectedElements = elements.filter(el => selectedIds.has(el.id));
@@ -1016,26 +1033,8 @@ export function Canvas({
         onWheel={handleWheel}
       />
 
-      {/* Floating Apple-Style Canvas Zoom Widget */}
-      <div className="canvas-zoom-pill" role="toolbar" aria-label="Canvas zoom controls">
-        <button className="canvas-zoom-btn" onClick={handleZoomOutAction} title="Zoom Out (Ctrl -)" aria-label="Zoom Out">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-        <button className="canvas-zoom-value" onClick={handleResetZoomAction} title="Reset Zoom to 100% (Ctrl 0)" aria-label="Reset Zoom to 100%">
-          {Math.round(zoom * 100)}%
-        </button>
-        <button className="canvas-zoom-btn" onClick={handleZoomInAction} title="Zoom In (Ctrl +)" aria-label="Zoom In">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      </div>
-
       {/* Floating Contextual Inspector for Sticky Notes (Pastel Tints & Callout Badges) */}
-      {floatingBarPos && activeSingleEl?.type === 'stickyNote' && !textEdit && (
+      {!isReadingMode && floatingBarPos && activeSingleEl?.type === 'stickyNote' && !textEdit && (
         <div
           className="canvas-floating-inspector sticky-inspector"
           style={{
@@ -1090,7 +1089,7 @@ export function Canvas({
         </div>
       )}
 
-      {textEdit && (
+      {!isReadingMode && textEdit && (
         <textarea
           id="text-input"
           ref={textareaRef}

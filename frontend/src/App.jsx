@@ -27,6 +27,9 @@ export function App() {
     return localStorage.getItem('supernotes_show_grid') === 'true';
   });
 
+  // Reading mode state (read-only document viewing mode)
+  const [isReadingMode, setIsReadingMode] = useState(false);
+
   // Canvas Viewport State
   const [elements, setElements] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -38,7 +41,7 @@ export function App() {
   const [noFill, setNoFill] = useState(true);
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [fontSize, setFontSize] = useState(24);
-  const [fontFamily, setFontFamily] = useState("'Caveat', cursive");
+  const [fontFamily, setFontFamily] = useState("'Patrick Hand', cursive");
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
@@ -89,6 +92,16 @@ export function App() {
     setShowGrid(prev => {
       const next = !prev;
       localStorage.setItem('supernotes_show_grid', next ? 'true' : 'false');
+      return next;
+    });
+  }, []);
+
+  const toggleReadingMode = useCallback(() => {
+    setIsReadingMode(prev => {
+      const next = !prev;
+      if (next) {
+        setSelectedIds(new Set());
+      }
       return next;
     });
   }, []);
@@ -392,6 +405,42 @@ export function App() {
       const key = e.key.toLowerCase();
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
 
+      // Escape exits reading mode
+      if (e.key === 'Escape' && isReadingMode) {
+        setIsReadingMode(false);
+        e.preventDefault();
+        return;
+      }
+
+      // Reading mode disables all editing, mutating, and drawing shortcuts
+      if (isReadingMode) {
+        if (isCmdOrCtrl && (key === '=' || key === '+' || e.key === '=' || e.key === '+')) {
+          handleZoomIn();
+          e.preventDefault();
+          return;
+        }
+        if (isCmdOrCtrl && (key === '-' || key === '_' || e.key === '-')) {
+          handleZoomOut();
+          e.preventDefault();
+          return;
+        }
+        if (isCmdOrCtrl && (key === '0' || e.key === '0')) {
+          handleResetZoom();
+          e.preventDefault();
+          return;
+        }
+        if (isCmdOrCtrl && e.key === '\\') {
+          toggleSidebar();
+          e.preventDefault();
+          return;
+        }
+        if (!isCmdOrCtrl && key === 'g') {
+          toggleGrid();
+          return;
+        }
+        return;
+      }
+
       // Delete / Backspace
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteSelected();
@@ -498,7 +547,7 @@ export function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [elements, deleteSelected, handleUndo, handleRedo, copySelected, pasteClipboard, toggleSidebar, toggleGrid, handleZoomIn, handleZoomOut, handleResetZoom, handleToggleFormatting]);
+  }, [elements, isReadingMode, deleteSelected, handleUndo, handleRedo, copySelected, pasteClipboard, toggleSidebar, toggleGrid, handleZoomIn, handleZoomOut, handleResetZoom, handleToggleFormatting]);
 
   return (
     <div id="app">
@@ -510,6 +559,8 @@ export function App() {
         sidebarCollapsed={sidebarCollapsed}
         showGrid={showGrid}
         onToggleGrid={toggleGrid}
+        isReadingMode={isReadingMode}
+        onToggleReadingMode={toggleReadingMode}
         onExport={() => fileManager.exportCurrentFile({ elements, scrollX, scrollY, zoom })}
         onImport={(file) => fileManager.importFile(file)}
       />
@@ -531,35 +582,41 @@ export function App() {
         />
 
         <div id="workspace">
-          <Toolbar
-            currentTool={currentTool}
-            onSetTool={setCurrentTool}
-            strokeColor={strokeColor}
-            onChangeStrokeColor={handleChangeStrokeColor}
-            fillColor={fillColor}
-            onChangeFillColor={handleChangeFillColor}
-            noFill={noFill}
-            onToggleNoFill={handleToggleNoFill}
-            strokeWidth={strokeWidth}
-            onChangeStrokeWidth={handleChangeStrokeWidth}
-            fontFamily={fontFamily}
-            onChangeFontFamily={handleChangeFontFamily}
-            fontSize={fontSize}
-            onChangeFontSize={handleChangeFontSize}
-            isBold={isBold}
-            isItalic={isItalic}
-            isUnderline={isUnderline}
-            onToggleFormatting={handleToggleFormatting}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-          />
+          {!isReadingMode && (
+            <Toolbar
+              currentTool={currentTool}
+              onSetTool={setCurrentTool}
+              strokeColor={strokeColor}
+              onChangeStrokeColor={handleChangeStrokeColor}
+              fillColor={fillColor}
+              onChangeFillColor={handleChangeFillColor}
+              noFill={noFill}
+              onToggleNoFill={handleToggleNoFill}
+              strokeWidth={strokeWidth}
+              onChangeStrokeWidth={handleChangeStrokeWidth}
+              fontFamily={fontFamily}
+              onChangeFontFamily={handleChangeFontFamily}
+              fontSize={fontSize}
+              onChangeFontSize={handleChangeFontSize}
+              isBold={isBold}
+              isItalic={isItalic}
+              isUnderline={isUnderline}
+              onToggleFormatting={handleToggleFormatting}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              showGrid={showGrid}
+              onToggleGrid={toggleGrid}
+              isReadingMode={isReadingMode}
+              onToggleReadingMode={toggleReadingMode}
+            />
+          )}
 
           <Canvas
             elements={elements}
             onChangeElements={handleElementsChange}
-            selectedIds={selectedIds}
+            selectedIds={isReadingMode ? new Set() : selectedIds}
             onSelectIds={setSelectedIds}
             currentTool={currentTool}
             onSetTool={setCurrentTool}
@@ -579,16 +636,15 @@ export function App() {
             onScrollChange={(x, y) => { setScrollX(x); setScrollY(y); }}
             isDark={isDark}
             showGrid={showGrid}
-            onZoomIn={handleZoomIn}
-            onZoomOut={handleZoomOut}
-            onResetZoom={handleResetZoom}
             onRecordHistory={handleRecordHistory}
+            isReadingMode={isReadingMode}
           />
         </div>
       </div>
 
       <StatusBar
-        tool={currentTool}
+        tool={isReadingMode ? null : currentTool}
+        isReadingMode={isReadingMode}
         zoom={zoom}
         elementCount={elements.length}
         dbStatus={fileManager.dbStatus}

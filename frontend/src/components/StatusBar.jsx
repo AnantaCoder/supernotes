@@ -2,6 +2,7 @@ import React from 'react';
 
 export function StatusBar({
   tool,
+  isReadingMode,
   zoom,
   elementCount,
   dbStatus,
@@ -9,16 +10,18 @@ export function StatusBar({
   onZoomOut,
   onResetZoom
 }) {
-  const toolName = tool ? (
-    tool === 'roundRect' ? 'Rounded Rectangle' :
-    tool === 'stickyNote' ? 'Sticky Note' :
-    tool === 'highlighter' ? 'Highlighter' :
-    tool === 'cylinder' ? 'Database (Cylinder)' :
-    tool === 'queue' ? 'Queue / Broker (Kafka/RabbitMQ)' :
-    tool === 'cloud' ? 'Cloud / CDN Node' :
-    tool === 'cache' ? 'Cache (Redis)' :
-    (tool.charAt(0).toUpperCase() + tool.slice(1))
-  ) : 'Select';
+  const toolName = isReadingMode
+    ? '📖 Reading (Read Only)'
+    : (tool ? (
+        tool === 'roundRect' ? 'Rounded Rectangle' :
+        tool === 'stickyNote' ? 'Sticky Note' :
+        tool === 'highlighter' ? 'Highlighter' :
+        tool === 'cylinder' ? 'Database (Cylinder)' :
+        tool === 'queue' ? 'Queue / Broker (Kafka/RabbitMQ)' :
+        tool === 'cloud' ? 'Cloud / CDN Node' :
+        tool === 'cache' ? 'Cache (Redis)' :
+        (tool.charAt(0).toUpperCase() + tool.slice(1))
+      ) : 'Select');
   const zoomPct = Math.round(zoom * 100) + '%';
 
   const isSaving = dbStatus.status === 'saving';
@@ -36,8 +39,8 @@ export function StatusBar({
   return (
     <footer id="statusbar" role="status" aria-label="Canvas status and sync info">
       <div className="statusbar-left">
-        <span id="status-tool" className="status-item">
-          <span className="status-label">Tool:</span>
+        <span id="status-tool" className={`status-item ${isReadingMode ? 'status-reading-mode' : ''}`}>
+          <span className="status-label">{isReadingMode ? 'Mode:' : 'Tool:'}</span>
           <span className="status-value">{toolName}</span>
         </span>
 

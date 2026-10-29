@@ -25,7 +25,7 @@ export function createElement(type, props = {}, defaultState = {}) {
     fillColor: defaultState.noFill === false ? (defaultState.fillColor || '#a5d8ff') : 'transparent',
     strokeWidth: defaultState.strokeWidth || 2,
     fontSize: defaultState.fontSize || 24,
-    fontFamily: defaultState.fontFamily || "'Caveat', cursive",
+    fontFamily: defaultState.fontFamily || "'Patrick Hand', cursive",
     bold: props.bold !== undefined ? !!props.bold : !!defaultState.isBold,
     italic: props.italic !== undefined ? !!props.italic : !!defaultState.isItalic,
     underline: props.underline !== undefined ? !!props.underline : !!defaultState.isUnderline,
@@ -54,7 +54,7 @@ export function getWrappedTextLines(el, explicitMaxWidth = null) {
 
   const ctx = getMeasurementContext();
   const fSize = el.fontSize || 24;
-  const fFamily = el.fontFamily || "'Caveat', cursive";
+  const fFamily = el.fontFamily || "'Patrick Hand', cursive";
   const fStyle = (el.italic ? 'italic ' : '') + (el.bold ? 'bold ' : 'normal ');
 
   if (ctx) {
@@ -120,7 +120,7 @@ export function getWrappedTextLines(el, explicitMaxWidth = null) {
 export function measureText(el) {
   const ctx = getMeasurementContext();
   const fSize = el.fontSize || 24;
-  const fFamily = el.fontFamily || "'Caveat', cursive";
+  const fFamily = el.fontFamily || "'Patrick Hand', cursive";
   const fStyle = (el.italic ? 'italic ' : '') + (el.bold ? 'bold ' : 'normal ');
 
   if (ctx) {

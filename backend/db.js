@@ -112,7 +112,7 @@ function seedStarterFile() {
       y: 155,
       text: '📝 Welcome to SuperNotes!\nDraw, drag & type notes.',
       fontSize: 24,
-      fontFamily: "'Caveat', cursive",
+      fontFamily: "'Patrick Hand', cursive",
       bold: false,
       italic: false,
       underline: false,

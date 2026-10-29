@@ -24,7 +24,9 @@ export function Toolbar({
   onUndo,
   onRedo,
   showGrid,
-  onToggleGrid
+  onToggleGrid,
+  isReadingMode,
+  onToggleReadingMode
 }) {
   return (
     <div id="toolbar" role="toolbar" aria-label="Drawing and formatting tools">
@@ -293,11 +295,13 @@ export function Toolbar({
             value={fontFamily}
             onChange={(e) => onChangeFontFamily(e.target.value)}
           >
-            <option value="'Caveat', cursive">✍️ Caveat (Handwriting)</option>
-            <option value="'Kalam', cursive">📝 Kalam (Handwriting)</option>
-            <option value="'Indie Flower', cursive">🌸 Indie Flower (Handwriting)</option>
-            <option value="'Patrick Hand', cursive">🖊️ Patrick Hand (Handwriting)</option>
-            <option value="'Fira Code', monospace">💻 Monospace (Code)</option>
+            <option value="'Patrick Hand', cursive">✍️ Patrick Hand (Neat Marker)</option>
+            <option value="'Permanent Marker', cursive">🖍️ Permanent Marker (Shiny Marker)</option>
+            <option value="'Architects Daughter', cursive">📐 Architects Daughter (Clean Marker)</option>
+            <option value="'Gloria Hallelujah', cursive">✨ Gloria Hallelujah (Pretty Marker)</option>
+            <option value="'Kalam', cursive">🖋️ Kalam (Felt Marker)</option>
+            <option value="Inter, sans-serif">🔤 Clean Sans (Inter)</option>
+            <option value="'Fira Code', monospace">💻 Code / Monospace</option>
           </select>
         </label>
 
@@ -378,23 +382,40 @@ export function Toolbar({
         </button>
       </div>
 
-      {/* Optional Group 5 — Grid Toggle if available */}
-      {onToggleGrid && (
+      {/* Optional Group 5 — View Controls: Grid & Reading Mode */}
+      {(onToggleGrid || onToggleReadingMode) && (
         <>
           <div className="toolbar-separator"></div>
           <div className="tool-group" id="canvas-view-controls">
-            <button
-              id="toolbar-btn-grid"
-              className={`tool-btn ${showGrid ? 'active' : ''}`}
-              onClick={onToggleGrid}
-              title={showGrid ? "Hide Grid (G)" : "Show Grid (G)"}
-              aria-label="Toggle Grid"
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeDasharray="1.5 2.5" />
-              </svg>
-            </button>
+            {onToggleGrid && (
+              <button
+                id="toolbar-btn-grid"
+                className={`tool-btn ${showGrid ? 'active' : ''}`}
+                onClick={onToggleGrid}
+                title={showGrid ? "Hide Grid (G)" : "Show Grid (G)"}
+                aria-label="Toggle Grid"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeDasharray="1.5 2.5" />
+                </svg>
+              </button>
+            )}
+
+            {onToggleReadingMode && (
+              <button
+                id="toolbar-btn-reading-mode"
+                className={`tool-btn ${isReadingMode ? 'active' : ''}`}
+                onClick={onToggleReadingMode}
+                title={isReadingMode ? "Exit Reading Mode" : "Reading Mode (Read Only)"}
+                aria-label="Toggle Reading Mode"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+              </button>
+            )}
           </div>
         </>
       )}

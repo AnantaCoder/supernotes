@@ -481,7 +481,7 @@ export function renderElement(ctx, rc, el, isDark) {
     if (el.text) {
       const maxWidth = bw - pad * 2;
       let fSize = el.fontSize || 20;
-      const fFamily = el.fontFamily || "'Caveat', cursive";
+      const fFamily = el.fontFamily || "'Patrick Hand', cursive";
       const fStyle = (el.italic ? 'italic ' : '') + (el.bold ? 'bold ' : 'normal ');
 
       ctx.save();
@@ -776,7 +776,7 @@ export function renderElement(ctx, rc, el, isDark) {
     }
   } else if (el.type === 'text') {
     const fSize = el.fontSize || 24;
-    const fFamily = el.fontFamily || "'Caveat', cursive";
+    const fFamily = el.fontFamily || "'Patrick Hand', cursive";
     const b = getBounds(el);
 
     if (fillColor && fillColor !== 'transparent') {
