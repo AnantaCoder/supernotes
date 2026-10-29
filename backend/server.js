@@ -5,9 +5,9 @@ const os = require('os');
 const { exec } = require('child_process');
 const db = require('./db');
 
-// Bind strictly to 127.0.0.1 (localhost) so port 5050 is NEVER exposed to Wi-Fi / LAN
+// Bind to 0.0.0.0 so Antigravity port forwarding, dev tunnels, and local browser can all connect
 const PORT = parseInt(process.env.PORT, 10) || 5050;
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 const BASE_DIR = __dirname;
 
 const MIME_TYPES = {
@@ -22,13 +22,27 @@ const MIME_TYPES = {
   '.webmanifest': 'application/manifest+json'
 };
 
-// Safe origins for development & production localhost
-const ALLOWED_ORIGINS = new Set([
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:5050',
-  'http://127.0.0.1:5050'
-]);
+// Check if origin is safe: allows any port on localhost/127.0.0.1 (forwarded ports) and Antigravity preview tunnels
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  try {
+    const u = new URL(origin);
+    // Allow any localhost/127.0.0.1 port (essential for IDE port forwarding)
+    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '::1' || u.hostname === '0.0.0.0') {
+      return true;
+    }
+    // Allow Antigravity and cloud preview tunnels
+    if (
+      u.hostname.endsWith('.antigravity.dev') ||
+      u.hostname.endsWith('.google.com') ||
+      u.hostname.endsWith('.internal') ||
+      u.hostname.endsWith('.app.github.dev')
+    ) {
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
 
 function getCorsHeaders(req) {
   const origin = req.headers.origin;
@@ -36,12 +50,11 @@ function getCorsHeaders(req) {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Requested-With',
     'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
+    'X-Frame-Options': 'SAMEORIGIN',
     'Referrer-Policy': 'strict-origin-when-cross-origin'
   };
-  // Strict origin check: Prevents external malicious sites from accessing local notes via DNS rebinding
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    headers['Access-Control-Allow-Origin'] = origin;
+  if (isAllowedOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin || '*';
   }
   return headers;
 }
