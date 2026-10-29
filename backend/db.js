@@ -313,6 +313,20 @@ function emptyTrash() {
   return res.changes;
 }
 
+function backupDatabase(targetPath) {
+  const database = getDb();
+  try {
+    database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  } catch (e) {}
+
+  if (fs.existsSync(targetPath)) {
+    fs.unlinkSync(targetPath);
+  }
+  const cleanPath = targetPath.replace(/\\/g, '/').replace(/'/g, "''");
+  database.exec(`VACUUM INTO '${cleanPath}'`);
+  return targetPath;
+}
+
 function migrateFiles(filesList) {
   const database = getDb();
   if (!Array.isArray(filesList)) return { imported: 0 };
@@ -340,6 +354,7 @@ module.exports = {
   permanentDelete,
   emptyTrash,
   purgeExpiredTrash,
-  migrateFiles
+  migrateFiles,
+  backupDatabase
 };
 

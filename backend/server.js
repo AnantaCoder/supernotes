@@ -15,7 +15,8 @@ const MIME_TYPES = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json'
 };
 
 function parseBody(req) {
@@ -76,6 +77,25 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'GET' && pathname === '/api/files') {
         const files = db.listFiles();
         return sendJson(res, 200, { success: true, files });
+      }
+
+      // GET /api/backup - Download standalone SQLite database backup file
+      if (req.method === 'GET' && pathname === '/api/backup') {
+        const os = require('os');
+        const today = new Date().toISOString().slice(0, 10);
+        const fileName = `supernotes-backup-${today}.db`;
+        const tempPath = path.join(os.tmpdir(), fileName);
+        db.backupDatabase(tempPath);
+        res.writeHead(200, {
+          'Content-Type': 'application/x-sqlite3',
+          'Content-Disposition': `attachment; filename="${fileName}"`
+        });
+        const readStream = fs.createReadStream(tempPath);
+        readStream.pipe(res);
+        readStream.on('close', () => {
+          try { fs.unlinkSync(tempPath); } catch (e) {}
+        });
+        return;
       }
 
       // GET /api/trash - List files in trash
@@ -198,6 +218,20 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      const url = `http://localhost:${PORT}`;
+      console.log(`\nSuperNotes is already running at ${url}. Opening in browser...`);
+      if (process.env.NO_OPEN !== 'true' && !process.env.CI) {
+        exec(`start ${url}`, () => {});
+      }
+      setTimeout(() => process.exit(0), 400);
+    } else {
+      console.error('Server error:', err);
+      process.exit(1);
+    }
+  });
+
   server.listen(PORT, () => {
     const url = `http://localhost:${PORT}`;
     console.log(`\n========================================`);

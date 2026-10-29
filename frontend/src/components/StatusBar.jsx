@@ -1,15 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export function StatusBar({
   tool,
   isReadingMode,
   zoom,
   elementCount,
+  selectedCount = 0,
   dbStatus,
   onZoomIn,
   onZoomOut,
   onResetZoom
 }) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const dateTooltip = now.toLocaleDateString([], {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }) + ' • ' + now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+
   const toolName = isReadingMode
     ? '📖 Reading (Read Only)'
     : (tool ? (
@@ -24,20 +42,22 @@ export function StatusBar({
       ) : 'Select');
   const zoomPct = Math.round(zoom * 100) + '%';
 
-  const isSaving = dbStatus.status === 'saving';
-  const isError = dbStatus.status === 'error';
+  const isSaving = dbStatus?.status === 'saving';
+  const isError = dbStatus?.status === 'error';
 
-  let statusLabel = 'SQLite Synced';
+  let saveLabel = 'Saved';
   if (isSaving) {
-    statusLabel = 'Saving to SQLite...';
+    saveLabel = 'Saving...';
   } else if (isError) {
-    statusLabel = 'Offline / Local';
-  } else if (dbStatus.text) {
-    statusLabel = dbStatus.text;
+    saveLabel = 'Saved locally';
+  } else if (dbStatus?.text) {
+    saveLabel = dbStatus.text.replace(/SQLite\s*/i, '').trim();
+    if (!saveLabel || saveLabel.toLowerCase() === 'synced') saveLabel = 'Saved';
   }
 
   return (
-    <footer id="statusbar" role="status" aria-label="Canvas status and sync info">
+    <footer id="statusbar" role="status" aria-label="Canvas status and controls">
+      {/* Left: Active Tool/Mode & Element/Selection Stats */}
       <div className="statusbar-left">
         <span id="status-tool" className={`status-item ${isReadingMode ? 'status-reading-mode' : ''}`}>
           <span className="status-label">{isReadingMode ? 'Mode:' : 'Tool:'}</span>
@@ -46,8 +66,21 @@ export function StatusBar({
 
         <span className="status-separator"></span>
 
-        <span id="status-zoom" className="status-item status-zoom-controls">
-          <span className="status-label">Zoom:</span>
+        <span id="status-elements" className="status-item">
+          <span className="status-value">
+            {elementCount === 0 ? '0 items' : `${elementCount} ${elementCount === 1 ? 'item' : 'items'}`}
+            {selectedCount > 0 && (
+              <span className="status-selected-count">
+                ({selectedCount} selected)
+              </span>
+            )}
+          </span>
+        </span>
+      </div>
+
+      {/* Center: Centered Zoom Feature */}
+      <div className="statusbar-center">
+        <div id="status-zoom" className="status-zoom-pill">
           {onZoomOut && (
             <button
               className="status-zoom-btn"
@@ -62,7 +95,7 @@ export function StatusBar({
             className="status-zoom-text-btn"
             onClick={onResetZoom}
             title="Reset zoom to 100% (Ctrl 0)"
-            aria-label="Reset zoom"
+            aria-label="Reset zoom to 100%"
           >
             {zoomPct}
           </button>
@@ -76,24 +109,28 @@ export function StatusBar({
               +
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Right: Auto-Save Status & Live Time Clock */}
+      <div className="statusbar-right">
+        <span
+          id="status-save"
+          className={`status-save ${isSaving ? 'saving' : ''} ${isError ? 'error' : ''}`}
+          title={isSaving ? 'Saving changes...' : isError ? 'Offline (saved to local backup)' : 'All changes saved'}
+        >
+          <span className="status-dot"></span>
+          <span className="status-text">{saveLabel}</span>
         </span>
 
         <span className="status-separator"></span>
 
-        <span id="status-elements" className="status-item">
-          <span className="status-value">
-            {elementCount === 0 ? 'No elements' : `${elementCount} ${elementCount === 1 ? 'element' : 'elements'}`}
-          </span>
-        </span>
-      </div>
-
-      <div className="statusbar-right">
-        <span
-          id="status-storage"
-          className={`status-storage ${isSaving ? 'saving' : ''} ${isError ? 'error' : ''}`}
-        >
-          <span className="status-dot"></span>
-          <span className="status-text">{statusLabel}</span>
+        <span id="status-time" className="status-item status-time-display" title={dateTooltip}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="status-time-icon">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span className="status-value">{timeString}</span>
         </span>
       </div>
     </footer>

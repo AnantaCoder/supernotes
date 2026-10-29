@@ -1,0 +1,17 @@
+{
+  "name": "SuperNotes",
+  "short_name": "SuperNotes",
+  "description": "Whiteboard, system design diagrams & notes with embedded SQLite",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#007aff",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
+

@@ -647,6 +647,7 @@ export function App() {
         isReadingMode={isReadingMode}
         zoom={zoom}
         elementCount={elements.length}
+        selectedCount={selectedIds ? selectedIds.size : 0}
         dbStatus={fileManager.dbStatus}
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}

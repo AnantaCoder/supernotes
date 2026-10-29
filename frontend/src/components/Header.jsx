@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { AppLogo } from './AppLogo.jsx';
 
 export function Header({
@@ -15,6 +15,14 @@ export function Header({
   onImport
 }) {
   const fileInputRef = useRef(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleImportClick = () => {
     if (fileInputRef.current) {
@@ -30,14 +38,26 @@ export function Header({
     }
   };
 
+  const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const dateTooltip = now.toLocaleDateString([], {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }) + ' • ' + now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
   // Human-readable, compact status text
-  let syncLabel = 'Synced';
-  if (dbStatus.status === 'saving') {
-    syncLabel = 'Saving...';
-  } else if (dbStatus.status === 'error') {
-    syncLabel = 'Offline';
-  } else if (dbStatus.text) {
-    syncLabel = dbStatus.text.replace('SQLite ', '');
+  const isSaving = dbStatus?.status === 'saving';
+  const isError = dbStatus?.status === 'error';
+
+  let saveLabel = 'Saved';
+  if (isSaving) {
+    saveLabel = 'Saving...';
+  } else if (isError) {
+    saveLabel = 'Offline';
+  } else if (dbStatus?.text) {
+    saveLabel = dbStatus.text.replace(/SQLite\s*/i, '').trim();
+    if (!saveLabel || saveLabel.toLowerCase() === 'synced') saveLabel = 'Saved';
   }
 
   return (
@@ -63,12 +83,17 @@ export function Header({
         </div>
 
         <div
-          id="db-badge"
-          className={`db-indicator ${dbStatus.status === 'saving' ? 'saving' : ''} ${dbStatus.status === 'error' ? 'error' : ''}`}
-          title="Embedded SQLite synchronization (supernotes.db)"
+          id="header-time-pill"
+          className={`header-time-pill ${isSaving ? 'saving' : ''} ${isError ? 'error' : ''}`}
+          title={`${dateTooltip} — ${saveLabel}`}
         >
-          <span className="db-dot"></span>
-          <span className="db-text">{syncLabel}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="header-clock-icon">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span className="header-time-text">{timeString}</span>
+          <span className="header-dot"></span>
+          <span className="header-save-text">{saveLabel}</span>
         </div>
       </div>
 
@@ -157,6 +182,21 @@ export function Header({
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
           <span className="header-btn-label">Import</span>
+        </button>
+
+        <button
+          id="btn-backup-db"
+          className="header-btn"
+          onClick={() => window.open('/api/backup', '_blank')}
+          title="Download complete SQLite database backup (.db snapshot for Google Drive)"
+          aria-label="Backup Database"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+          </svg>
+          <span className="header-btn-label">Backup</span>
         </button>
 
         <input

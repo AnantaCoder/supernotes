@@ -11,7 +11,7 @@ export function useFileManager({ onFileLoaded }) {
   const [currentFileId, setCurrentFileId] = useState(null);
   const [currentFile, setCurrentFile] = useState(null);
   const [trashFiles, setTrashFiles] = useState([]);
-  const [dbStatus, setDbStatus] = useState({ status: 'connected', text: 'SQLite Synced' });
+  const [dbStatus, setDbStatus] = useState({ status: 'connected', text: 'All changes saved' });
   const saveTimeoutRef = useRef(null);
 
   // Load files and trash on mount
@@ -21,14 +21,14 @@ export function useFileManager({ onFileLoaded }) {
   }, []);
 
   const loadFiles = async () => {
-    setDbStatus({ status: 'saving', text: 'Loading SQLite...' });
+    setDbStatus({ status: 'saving', text: 'Loading...' });
     let fetchedFiles = [];
     try {
       const res = await fetch('/api/files');
       const data = await res.json();
       if (data && data.success && Array.isArray(data.files) && data.files.length > 0) {
         fetchedFiles = data.files;
-        setDbStatus({ status: 'connected', text: 'SQLite Synced' });
+        setDbStatus({ status: 'connected', text: 'All changes saved' });
       }
     } catch (err) {
       console.warn('API connection failed, trying localStorage:', err);
@@ -127,11 +127,11 @@ export function useFileManager({ onFileLoaded }) {
       });
       const data = await res.json();
       if (data && data.success) {
-        setDbStatus({ status: 'connected', text: 'SQLite Synced' });
+        setDbStatus({ status: 'connected', text: 'All changes saved' });
         setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: payload.name || f.name, updatedAt: Date.now() } : f));
       }
     } catch (err) {
-      setDbStatus({ status: 'error', text: 'Saved Locally' });
+      setDbStatus({ status: 'error', text: 'Saved locally' });
     }
   }, []);
 
