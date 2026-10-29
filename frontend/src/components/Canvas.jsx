@@ -31,34 +31,6 @@ const CALLOUT_PRESETS = [
   { id: 'Decision',   label: '💡 Decision',   tint: 'purple' }
 ];
 
-const ARCH_PRESETS = {
-  cylinder: [
-    { label: 'PostgreSQL', icon: '🐘' },
-    { label: 'MySQL',      icon: '🐬' },
-    { label: 'MongoDB',    icon: '🍃' },
-    { label: 'Primary DB', icon: '🗄️' },
-    { label: 'Read Replica', icon: '🔄' }
-  ],
-  queue: [
-    { label: 'Kafka',      icon: '📨' },
-    { label: 'RabbitMQ',   icon: '🐰' },
-    { label: 'AWS SQS',    icon: '📦' },
-    { label: 'Event Bus',  icon: '⚡' }
-  ],
-  cloud: [
-    { label: 'Cloud / CDN', icon: '☁️' },
-    { label: 'Cloudflare',  icon: '🛡️' },
-    { label: 'AWS Cloud',   icon: '🌐' },
-    { label: 'API Gateway', icon: '🚪' }
-  ],
-  cache: [
-    { label: 'Redis',       icon: '⚡' },
-    { label: 'Memcached',   icon: '💾' },
-    { label: 'In-Memory',   icon: '🧠' },
-    { label: 'L1 / L2 Cache', icon: '🚀' }
-  ]
-};
-
 const SNAP_RADIUS = 18; // canvas units
 
 function findNearestConnectionPoint(elements, px, py, excludeId, zoom) {
@@ -575,25 +547,25 @@ export function Canvas({
     } else if (currentTool === 'cylinder') {
       newEl = createElement('cylinder', {
         x: pt.x, y: pt.y, width: 0, height: 0,
-        text: 'Database',
+        text: '',
         fillColor: noFill ? 'transparent' : (fillColor !== 'transparent' ? fillColor : (isDark ? '#263445' : '#E8F3FF'))
       }, { strokeColor, fillColor, noFill, strokeWidth });
     } else if (currentTool === 'queue') {
       newEl = createElement('queue', {
         x: pt.x, y: pt.y, width: 0, height: 0,
-        text: 'Kafka',
+        text: '',
         fillColor: noFill ? 'transparent' : (fillColor !== 'transparent' ? fillColor : (isDark ? '#3D2D1E' : '#FFF7ED'))
       }, { strokeColor, fillColor, noFill, strokeWidth });
     } else if (currentTool === 'cloud') {
       newEl = createElement('cloud', {
         x: pt.x, y: pt.y, width: 0, height: 0,
-        text: 'Cloud / CDN',
+        text: '',
         fillColor: noFill ? 'transparent' : (fillColor !== 'transparent' ? fillColor : (isDark ? '#1E2F3D' : '#F0F9FF'))
       }, { strokeColor, fillColor, noFill, strokeWidth });
     } else if (currentTool === 'cache') {
       newEl = createElement('cache', {
         x: pt.x, y: pt.y, width: 0, height: 0,
-        text: 'Redis',
+        text: '',
         fillColor: noFill ? 'transparent' : (fillColor !== 'transparent' ? fillColor : (isDark ? '#3B1F24' : '#FEF2F2'))
       }, { strokeColor, fillColor, noFill, strokeWidth });
     } else if (currentTool === 'stickyNote') {
@@ -971,7 +943,7 @@ export function Canvas({
   const activeSingleEl = selectedElements.length === 1 ? selectedElements[0] : null;
 
   let floatingBarPos = null;
-  if (activeSingleEl && (activeSingleEl.type === 'stickyNote' || ['cylinder', 'queue', 'cloud', 'cache'].includes(activeSingleEl.type)) && !textEdit) {
+  if (activeSingleEl && activeSingleEl.type === 'stickyNote' && !textEdit) {
     const b = getBounds(activeSingleEl);
     const screenTopLeft = canvasToContainer(b.x, b.y);
     const screenTopRight = canvasToContainer(b.x + b.width, b.y);
@@ -1022,18 +994,6 @@ export function Canvas({
           clone.strokeColor = isDark ? PASTEL_PALETTE[defaultTint].darkBorder : PASTEL_PALETTE[defaultTint].border;
         }
         return clone;
-      }
-      return el;
-    });
-    onChangeElements(updated);
-    onRecordHistory(updated);
-  };
-
-  const handleSetArchPreset = (label) => {
-    if (!activeSingleEl || !['cylinder', 'queue', 'cloud', 'cache'].includes(activeSingleEl.type)) return;
-    const updated = elements.map(el => {
-      if (el.id === activeSingleEl.id) {
-        return { ...el, text: label };
       }
       return el;
     });
@@ -1126,43 +1086,6 @@ export function Canvas({
                 ✕
               </button>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Floating Contextual Inspector for Architecture Shapes (Kafka, Redis, PostgreSQL, etc.) */}
-      {floatingBarPos && ['cylinder', 'queue', 'cloud', 'cache'].includes(activeSingleEl?.type) && !textEdit && (
-        <div
-          className="canvas-floating-inspector arch-inspector"
-          style={{
-            left: `${floatingBarPos.x}px`,
-            top: `${floatingBarPos.y}px`
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <div className="floating-badges-row">
-            {(ARCH_PRESETS[activeSingleEl.type] || []).map(preset => (
-              <button
-                key={preset.label}
-                className={`arch-preset-btn ${activeSingleEl.text === preset.label ? 'active' : ''}`}
-                onClick={() => handleSetArchPreset(preset.label)}
-                title={`Apply ${preset.label}`}
-              >
-                <span className="arch-preset-icon">{preset.icon}</span>
-                <span>{preset.label}</span>
-              </button>
-            ))}
-            <button
-              className="arch-edit-label-btn"
-              onClick={() => {
-                const b = getBounds(activeSingleEl);
-                startTextEditing(b.x + 12, b.y + b.height / 2 - 16, activeSingleEl);
-              }}
-              title="Edit Component Label (or double-click shape)"
-            >
-              ✏️ Edit
-            </button>
           </div>
         </div>
       )}

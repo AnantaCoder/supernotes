@@ -519,11 +519,11 @@ export function renderElement(ctx, rc, el, isDark) {
 
     ctx.restore();
   } else if (el.type === 'cylinder') {
-    // Database (3D Cylinder with optional disk partitions)
+    // Database (Simple, clean 3D Cylinder)
     const b = getBounds(el);
     const bw = Math.max(30, b.width);
     const bh = Math.max(30, b.height);
-    const topH = Math.min(26, Math.max(12, bh * 0.22));
+    const topH = Math.min(24, Math.max(10, bh * 0.22));
     const cx = b.x + bw / 2;
     const topY = b.y + topH / 2;
     const botY = b.y + bh - topH / 2;
@@ -547,15 +547,6 @@ export function renderElement(ctx, rc, el, isDark) {
       rc.line(b.x + bw, topY, b.x + bw, botY, opts);
       // Bottom arc
       rc.arc(cx, botY, bw, topH, 0, Math.PI, false, opts);
-      // Internal disk dividers for database realism
-      if (bh > 60) {
-        const d1 = topY + (bh - topH) * 0.35;
-        rc.arc(cx, d1, bw, topH, 0, Math.PI, false, { ...opts, strokeWidth: Math.max(1, (el.strokeWidth || 2) * 0.7) });
-        if (bh > 95) {
-          const d2 = topY + (bh - topH) * 0.68;
-          rc.arc(cx, d2, bw, topH, 0, Math.PI, false, { ...opts, strokeWidth: Math.max(1, (el.strokeWidth || 2) * 0.7) });
-        }
-      }
     } else {
       ctx.beginPath();
       ctx.ellipse(cx, topY, bw / 2, topH / 2, 0, 0, Math.PI * 2);
@@ -569,30 +560,18 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = el.strokeWidth || 2;
       ctx.stroke();
-
-      if (bh > 60) {
-        ctx.beginPath();
-        ctx.ellipse(cx, topY + (bh - topH) * 0.35, bw / 2, topH / 2, 0, 0, Math.PI, false);
-        ctx.stroke();
-        if (bh > 95) {
-          ctx.beginPath();
-          ctx.ellipse(cx, topY + (bh - topH) * 0.68, bw / 2, topH / 2, 0, 0, Math.PI, false);
-          ctx.stroke();
-        }
-      }
     }
 
-    // Centered database text label
-    const label = el.text || 'Database';
-    if (label) {
+    // Centered database text label (only when text is set)
+    if (el.text && el.text.trim()) {
       ctx.save();
-      const fSize = Math.max(12, Math.min(18, Math.round(bh * 0.19)));
+      const fSize = Math.max(12, Math.min(18, Math.round(bh * 0.18)));
       ctx.font = "bold " + fSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       ctx.fillStyle = strokeColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const labelY = topY + (bh - topH) * 0.52;
-      ctx.fillText(label, cx, labelY);
+      const labelY = topY + (bh - topH) * 0.5;
+      ctx.fillText(el.text.trim(), cx, labelY);
       ctx.restore();
     }
   } else if (el.type === 'queue') {
@@ -657,9 +636,8 @@ export function renderElement(ctx, rc, el, isDark) {
       }
     }
 
-    // Queue text label (e.g. "Kafka", "RabbitMQ", "Queue")
-    const label = el.text || 'Kafka';
-    if (label) {
+    // Queue text label (only when text is set)
+    if (el.text && el.text.trim()) {
       ctx.save();
       const fSize = Math.max(12, Math.min(18, Math.round(bh * 0.26)));
       ctx.font = "bold " + fSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
@@ -667,7 +645,7 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const textX = b.x + (bw - 50) / 2 + 10;
-      ctx.fillText(label, textX, cy);
+      ctx.fillText(el.text.trim(), textX, cy);
       ctx.restore();
     }
   } else if (el.type === 'cloud') {
@@ -715,16 +693,15 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.stroke();
     }
 
-    // Center Cloud/CDN label
-    const label = el.text || 'Cloud / CDN';
-    if (label) {
+    // Center Cloud/CDN label (only when text is set)
+    if (el.text && el.text.trim()) {
       ctx.save();
       const fSize = Math.max(12, Math.min(18, Math.round(bh * 0.18)));
       ctx.font = "bold " + fSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       ctx.fillStyle = strokeColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, b.x + bw / 2, b.y + bh * 0.52);
+      ctx.fillText(el.text.trim(), b.x + bw / 2, b.y + bh * 0.52);
       ctx.restore();
     }
   } else if (el.type === 'cache') {
@@ -786,16 +763,15 @@ export function renderElement(ctx, rc, el, isDark) {
       }
     }
 
-    // Top Header: Flash icon + Label (e.g. "⚡ Redis")
-    const label = el.text || 'Redis';
-    if (label) {
+    // Top Header: Flash icon + Label (only when text is set)
+    if (el.text && el.text.trim()) {
       ctx.save();
       const fSize = Math.max(11, Math.min(15, Math.round(headerH * 0.62)));
       ctx.font = "bold " + fSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       ctx.fillStyle = strokeColor;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText("⚡ " + label, b.x + 10, b.y + headerH / 2);
+      ctx.fillText("⚡ " + el.text.trim(), b.x + 10, b.y + headerH / 2);
       ctx.restore();
     }
   } else if (el.type === 'text') {

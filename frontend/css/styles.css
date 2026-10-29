@@ -1138,8 +1138,7 @@ html, body {
   flex-wrap: nowrap;
 }
 
-.callout-pill-btn,
-.arch-preset-btn {
+.callout-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1155,15 +1154,13 @@ html, body {
   transition: all var(--transition-fast);
 }
 
-.callout-pill-btn:hover,
-.arch-preset-btn:hover {
+.callout-pill-btn:hover {
   background-color: var(--accent-subtle);
   border-color: var(--accent);
   color: var(--accent);
 }
 
-.callout-pill-btn.active,
-.arch-preset-btn.active {
+.callout-pill-btn.active {
   background-color: var(--accent-subtle);
   border-color: var(--accent);
   color: var(--accent);
@@ -1188,30 +1185,6 @@ html, body {
 .callout-pill-clear-btn:hover {
   background-color: var(--danger-subtle);
   color: var(--danger);
-}
-
-.arch-edit-label-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  font-size: 11px;
-  border-radius: var(--radius-pill);
-  border: 1px dashed var(--border);
-  background-color: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.arch-edit-label-btn:hover {
-  background-color: var(--surface-secondary);
-  color: var(--text-primary);
-  border-color: var(--accent);
-}
-
-.arch-preset-icon {
-  font-size: 11px;
 }
 
 /* Floating Apple-Style Canvas Zoom Widget */
