@@ -1471,25 +1471,38 @@ html, body {
   opacity: 1;
 }
 
-/* Ensure top task bar (#header) and bottom status bar (#statusbar) stay prominently visible in Fullscreen */
+/* Fullscreen mode: Hide top most navbar (#header) completely, keep bottom status bar visible */
 :fullscreen #header,
-:-webkit-full-screen #header {
-  position: relative;
-  z-index: 50;
-  flex-shrink: 0;
+:-webkit-full-screen #header,
+body.is-fullscreen #header {
+  display: none !important;
 }
 
 :fullscreen #statusbar,
-:-webkit-full-screen #statusbar {
+:-webkit-full-screen #statusbar,
+body.is-fullscreen #statusbar {
+  display: flex !important;
   position: relative;
   z-index: 50;
   flex-shrink: 0;
 }
 
 :fullscreen #main,
-:-webkit-full-screen #main {
+:-webkit-full-screen #main,
+body.is-fullscreen #main {
   flex: 1;
   min-height: 0;
+}
+
+#toolbar-btn-toggle-sidebar {
+  width: 26px;
+  height: 26px;
+  color: var(--text-secondary);
+}
+
+#toolbar-btn-toggle-sidebar svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* --------------------------------------------------------------------------

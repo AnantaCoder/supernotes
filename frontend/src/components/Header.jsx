@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { AppLogo } from './AppLogo.jsx';
 
 export function Header({
@@ -15,14 +15,6 @@ export function Header({
   onImport
 }) {
   const fileInputRef = useRef(null);
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const handleImportClick = () => {
     if (fileInputRef.current) {
@@ -37,28 +29,6 @@ export function Header({
       onImport(file);
     }
   };
-
-  const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const dateTooltip = now.toLocaleDateString([], {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  }) + ' • ' + now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-
-  // Human-readable, compact status text
-  const isSaving = dbStatus?.status === 'saving';
-  const isError = dbStatus?.status === 'error';
-
-  let saveLabel = 'Saved';
-  if (isSaving) {
-    saveLabel = 'Saving...';
-  } else if (isError) {
-    saveLabel = 'Offline';
-  } else if (dbStatus?.text) {
-    saveLabel = dbStatus.text.replace(/SQLite\s*/i, '').trim();
-    if (!saveLabel || saveLabel.toLowerCase() === 'synced') saveLabel = 'Saved';
-  }
 
   return (
     <header id="header">
@@ -80,20 +50,6 @@ export function Header({
         <div className="brand-group">
           <AppLogo size={20} />
           <span className="app-title">SuperNotes</span>
-        </div>
-
-        <div
-          id="header-time-pill"
-          className={`header-time-pill ${isSaving ? 'saving' : ''} ${isError ? 'error' : ''}`}
-          title={`${dateTooltip} — ${saveLabel}`}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="header-clock-icon">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          <span className="header-time-text">{timeString}</span>
-          <span className="header-dot"></span>
-          <span className="header-save-text">{saveLabel}</span>
         </div>
       </div>
 

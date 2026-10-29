@@ -26,10 +26,33 @@ export function Toolbar({
   showGrid,
   onToggleGrid,
   isReadingMode,
-  onToggleReadingMode
+  onToggleReadingMode,
+  onToggleSidebar,
+  sidebarCollapsed
 }) {
   return (
     <div id="toolbar" role="toolbar" aria-label="Drawing and formatting tools">
+      {/* Menu / Sidebar Toggle (especially handy in fullscreen or single-click access) */}
+      {onToggleSidebar && (
+        <>
+          <div className="tool-group" id="toolbar-sidebar-group">
+            <button
+              id="toolbar-btn-toggle-sidebar"
+              className={`tool-btn sidebar-toggle-btn ${!sidebarCollapsed ? 'active' : ''}`}
+              onClick={onToggleSidebar}
+              title={sidebarCollapsed ? "Open Menu / Files (Ctrl+\\)" : "Close Menu / Files (Ctrl+\\)"}
+              aria-label={sidebarCollapsed ? "Open Menu" : "Close Menu"}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" ry="3" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+            </button>
+          </div>
+          <div className="toolbar-separator"></div>
+        </>
+      )}
+
       {/* Group 1 — Selection and drawing */}
       <div className="tool-group" id="tool-buttons">
         <button

@@ -610,6 +610,8 @@ export function App() {
               onToggleGrid={toggleGrid}
               isReadingMode={isReadingMode}
               onToggleReadingMode={toggleReadingMode}
+              onToggleSidebar={toggleSidebar}
+              sidebarCollapsed={sidebarCollapsed}
             />
           )}
 

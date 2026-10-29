@@ -24,10 +24,13 @@ export function StatusBar({
   // Listen for native fullscreen changes (via button or F11 / Esc)
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      const active = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+      setIsFullscreen(active);
+      document.body.classList.toggle('is-fullscreen', active);
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    handleFullscreenChange();
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -165,12 +168,12 @@ export function StatusBar({
 
         <span className="status-separator"></span>
 
-        {/* Fullscreen Button: keeps top task bar & bottom status bar visible */}
+        {/* Fullscreen Button */}
         <button
           id="btn-fullscreen-toggle"
           className={`status-fullscreen-btn ${isFullscreen ? 'active' : ''}`}
           onClick={toggleFullscreen}
-          title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11) — keeps top task bar & status bar visible"}
+          title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11)"}
           aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
         >
           {isFullscreen ? (
