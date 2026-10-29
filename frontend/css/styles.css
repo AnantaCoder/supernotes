@@ -1038,6 +1038,10 @@ html, body {
   overflow: hidden;
   background-color: var(--canvas-bg);
   cursor: default;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #canvas {
@@ -1047,6 +1051,10 @@ html, body {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Text Input Overlay (during inline text editing) */
@@ -1421,6 +1429,69 @@ html, body {
   background-color: var(--danger);
 }
 
+/* Fullscreen Toggle Button in Bottom Status Bar */
+.status-fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 19px;
+  padding: 0 6px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.status-fullscreen-btn:hover {
+  background-color: var(--surface-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.status-fullscreen-btn.active {
+  background-color: var(--accent-subtle);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: var(--accent);
+}
+
+.status-fullscreen-btn svg {
+  opacity: 0.8;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.status-fullscreen-btn:hover svg,
+.status-fullscreen-btn.active svg {
+  opacity: 1;
+}
+
+/* Ensure top task bar (#header) and bottom status bar (#statusbar) stay prominently visible in Fullscreen */
+:fullscreen #header,
+:-webkit-full-screen #header {
+  position: relative;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+:fullscreen #statusbar,
+:-webkit-full-screen #statusbar {
+  position: relative;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+:fullscreen #main,
+:-webkit-full-screen #main {
+  flex: 1;
+  min-height: 0;
+}
+
 /* --------------------------------------------------------------------------
    Scrollbars — Sleek Apple Minimalist
    -------------------------------------------------------------------------- */
@@ -1533,7 +1604,56 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
   }
 
   #status-tool .status-label,
-  #status-zoom .status-label {
+  #status-zoom .status-label,
+  .status-fullscreen-label {
     display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Touchscreen & Mobile Pointer Optimizations
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  /* Comfortably sized touch targets for fingertips */
+  .tool-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .header-btn {
+    min-height: 32px;
+    padding: 0 10px;
+  }
+
+  .status-zoom-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 15px;
+  }
+
+  .status-fullscreen-btn {
+    height: 24px;
+    padding: 0 8px;
+  }
+
+  .status-zoom-text-btn {
+    min-width: 48px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .file-item {
+    min-height: 36px;
+    padding: 0 10px;
+  }
+
+  /* On touchscreens hover does not exist, so keep action buttons always visible */
+  .file-item-actions {
+    opacity: 1 !important;
+  }
+
+  /* Remove mobile tap highlight flash */
+  * {
+    -webkit-tap-highlight-color: transparent;
   }
 }

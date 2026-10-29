@@ -176,6 +176,16 @@ export function Canvas({
     drawingArrowId: null,
   });
 
+  // Touchscreen & Stylus Tracking Refs (Multi-touch pinch-to-zoom, pan & palm rejection)
+  const activePointersRef = useRef(new Map());
+  const touchGestureRef = useRef({
+    isGesturing: false,
+    initialDistance: 0,
+    initialZoom: 1,
+    initialMidpoint: { x: 0, y: 0 },
+    initialScroll: { x: 0, y: 0 }
+  });
+
   // Screen to Canvas coordinate translation
   const screenToCanvas = useCallback((screenX, screenY) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
@@ -475,6 +485,64 @@ export function Canvas({
   const handlePointerDown = (e) => {
     if (textEdit) commitTextEditor();
 
+    // Capture pointer so dragging or pinching doesn't lose tracking
+    try {
+      if (e.target && e.target.setPointerCapture) {
+        e.target.setPointerCapture(e.pointerId);
+      }
+    } catch (_) {}
+
+    // Track active pointer for multi-touch & gestures
+    activePointersRef.current.set(e.pointerId, {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      pointerType: e.pointerType,
+      pressure: e.pressure
+    });
+
+    // 1. Palm Rejection: If an active stylus pen is writing, ignore new touch inputs from palm resting
+    if (e.pointerType === 'touch') {
+      const hasPenActive = Array.from(activePointersRef.current.values()).some(p => p.pointerType === 'pen');
+      if (hasPenActive) {
+        return; // Ignore palm contact
+      }
+    }
+
+    // 2. Multi-Touch Pinch-to-Zoom & Two-Finger Pan Detection
+    if (activePointersRef.current.size === 2) {
+      const inter = interactionRef.current;
+      // If a single-finger drawing stroke was started, discard the partial element cleanly
+      if (inter.type === 'drawing' && inter.currentElement) {
+        onChangeElements(elements.filter(el => el.id !== inter.currentElement.id));
+        inter.currentElement = null;
+      }
+      if (inter.type === 'marquee') {
+        inter.selectionBox = null;
+      }
+      inter.isInteracting = false;
+      inter.type = null;
+
+      const [p1, p2] = Array.from(activePointersRef.current.values());
+      const dist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const midX = (p1.clientX + p2.clientX) / 2;
+      const midY = (p1.clientY + p2.clientY) / 2;
+
+      touchGestureRef.current = {
+        isGesturing: true,
+        initialDistance: Math.max(dist, 1),
+        initialZoom: zoom,
+        initialMidpoint: { x: midX, y: midY },
+        initialScroll: { x: scrollX, y: scrollY }
+      };
+
+      if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
+      return;
+    }
+
+    if (activePointersRef.current.size > 2) {
+      return;
+    }
+
     if (isReadingMode) {
       if (e.button === 0 || e.button === 1 || interactionRef.current.spacePressed) {
         const pt = screenToCanvas(e.clientX, e.clientY);
@@ -510,8 +578,13 @@ export function Canvas({
       return;
     }
 
+    // Touch tolerance (Fat Finger Rule): generous hitboxes on finger taps
+    const isTouch = e.pointerType === 'touch';
+    const handleHitDist = isTouch ? (22 / zoom) : (10 / zoom);
+    const elementHitDist = isTouch ? (16 / zoom) : (8 / zoom);
+
     if (currentTool === 'text') {
-      const hitText = [...elements].reverse().find(el => el.type === 'text' && hitTest(el, pt.x, pt.y, 8 / zoom));
+      const hitText = [...elements].reverse().find(el => el.type === 'text' && hitTest(el, pt.x, pt.y, elementHitDist));
       if (hitText) {
         startTextEditing(hitText.x, hitText.y, hitText);
       } else {
@@ -524,7 +597,7 @@ export function Canvas({
     if (currentTool === 'select') {
       const selected = elements.filter(el => selectedIds.has(el.id));
       if (selected.length === 1) {
-        const handle = hitTestHandle(selected[0], pt.x, pt.y, 10 / zoom);
+        const handle = hitTestHandle(selected[0], pt.x, pt.y, handleHitDist);
         if (handle) {
           inter.type = 'resizing';
           inter.resizingElement = selected[0];
@@ -537,8 +610,8 @@ export function Canvas({
         }
       }
 
-      let hit = [...elements].reverse().find(el => el.type === 'text' && hitTest(el, pt.x, pt.y, 8 / zoom));
-      if (!hit) hit = [...elements].reverse().find(el => hitTest(el, pt.x, pt.y, 8 / zoom));
+      let hit = [...elements].reverse().find(el => el.type === 'text' && hitTest(el, pt.x, pt.y, elementHitDist));
+      if (!hit) hit = [...elements].reverse().find(el => hitTest(el, pt.x, pt.y, elementHitDist));
 
       if (hit) {
         if (e.shiftKey) {
@@ -642,6 +715,42 @@ export function Canvas({
   };
 
   const handlePointerMove = (e) => {
+    // Update pointer position in active pointers map
+    if (activePointersRef.current.has(e.pointerId)) {
+      activePointersRef.current.set(e.pointerId, {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        pointerType: e.pointerType,
+        pressure: e.pressure
+      });
+    }
+
+    // 1. Two-Finger Pinch-to-Zoom & Pan Gesture
+    if (touchGestureRef.current.isGesturing && activePointersRef.current.size >= 2) {
+      const [p1, p2] = Array.from(activePointersRef.current.values());
+      const newDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+      const newMidX = (p1.clientX + p2.clientX) / 2;
+      const newMidY = (p1.clientY + p2.clientY) / 2;
+
+      const initDist = touchGestureRef.current.initialDistance || 1;
+      const scale = newDist / initDist;
+      const newZoom = Math.min(Math.max(touchGestureRef.current.initialZoom * scale, 0.1), 5.0);
+
+      const startMid = touchGestureRef.current.initialMidpoint;
+      const initZoom = touchGestureRef.current.initialZoom;
+      const initScroll = touchGestureRef.current.initialScroll;
+
+      // Mathematical pinch-to-zoom centered at midpoint between the two fingers
+      const canvasPtX = (startMid.x - initScroll.x) / initZoom;
+      const canvasPtY = (startMid.y - initScroll.y) / initZoom;
+      const targetScrollX = newMidX - canvasPtX * newZoom;
+      const targetScrollY = newMidY - canvasPtY * newZoom;
+
+      onZoomChange(newZoom);
+      onScrollChange(targetScrollX, targetScrollY);
+      return;
+    }
+
     if (isReadingMode) {
       const inter = interactionRef.current;
       if (inter.isInteracting && inter.type === 'panning') {
@@ -799,7 +908,8 @@ export function Canvas({
           } else if (clone.type === 'line' || clone.type === 'arrow') {
             clone.points[1] = { x: snappedPt.x, y: snappedPt.y };
           } else if (clone.type === 'freehand' || clone.type === 'highlighter') {
-            clone.points.push({ x: pt.x, y: pt.y });
+            const pressure = (e.pressure && e.pressure > 0) ? e.pressure : (e.pointerType === 'pen' ? 0.5 : 1);
+            clone.points.push({ x: pt.x, y: pt.y, pressure });
           }
           return clone;
         }
@@ -809,7 +919,27 @@ export function Canvas({
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
+    try {
+      if (e?.target?.releasePointerCapture && e?.pointerId !== undefined) {
+        e.target.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
+
+    if (e?.pointerId !== undefined) {
+      activePointersRef.current.delete(e.pointerId);
+    } else {
+      activePointersRef.current.clear();
+    }
+
+    // Exit two-finger pinch gesture cleanly without triggering single-finger release
+    if (touchGestureRef.current.isGesturing) {
+      if (activePointersRef.current.size < 2) {
+        touchGestureRef.current.isGesturing = false;
+      }
+      return;
+    }
+
     const inter = interactionRef.current;
     if (!inter.isInteracting) return;
 
@@ -913,6 +1043,34 @@ export function Canvas({
         }
       }
     }
+  };
+
+  const handlePointerCancel = (e) => {
+    try {
+      if (e?.target?.releasePointerCapture && e?.pointerId !== undefined) {
+        e.target.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
+
+    if (e?.pointerId !== undefined) {
+      activePointersRef.current.delete(e.pointerId);
+    } else {
+      activePointersRef.current.clear();
+    }
+    touchGestureRef.current.isGesturing = false;
+
+    const inter = interactionRef.current;
+    if (inter.isInteracting) {
+      if (inter.type === 'drawing' && inter.currentElement) {
+        onChangeElements(elements.filter(el => el.id !== inter.currentElement.id));
+        inter.currentElement = null;
+      }
+      inter.isInteracting = false;
+      inter.type = null;
+      inter.hasMoved = false;
+      inter.selectionBox = null;
+    }
+    if (canvasRef.current) canvasRef.current.style.cursor = isReadingMode ? 'grab' : 'default';
   };
 
   const handleDoubleClick = (e) => {
@@ -1029,6 +1187,7 @@ export function Canvas({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         onDoubleClick={handleDoubleClick}
         onWheel={handleWheel}
       />

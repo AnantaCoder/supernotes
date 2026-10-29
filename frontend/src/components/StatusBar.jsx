@@ -12,6 +12,7 @@ export function StatusBar({
   onResetZoom
 }) {
   const [now, setNow] = useState(() => new Date());
+  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(document.fullscreenElement));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -19,6 +20,35 @@ export function StatusBar({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Listen for native fullscreen changes (via button or F11 / Esc)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        document.documentElement.webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  };
 
   const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const dateTooltip = now.toLocaleDateString([], {
@@ -112,7 +142,7 @@ export function StatusBar({
         </div>
       </div>
 
-      {/* Right: Auto-Save Status & Live Time Clock */}
+      {/* Right: Auto-Save Status, Live Time Clock & Fullscreen Toggle */}
       <div className="statusbar-right">
         <span
           id="status-save"
@@ -132,6 +162,30 @@ export function StatusBar({
           </svg>
           <span className="status-value">{timeString}</span>
         </span>
+
+        <span className="status-separator"></span>
+
+        {/* Fullscreen Button: keeps top task bar & bottom status bar visible */}
+        <button
+          id="btn-fullscreen-toggle"
+          className={`status-fullscreen-btn ${isFullscreen ? 'active' : ''}`}
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Exit Fullscreen (F11)" : "Enter Fullscreen (F11) — keeps top task bar & status bar visible"}
+          aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+          {isFullscreen ? (
+            /* Compress / Exit Fullscreen icon */
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+            </svg>
+          ) : (
+            /* Expand / Enter Fullscreen icon */
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+          )}
+          <span className="status-fullscreen-label">{isFullscreen ? 'Exit Full' : 'Fullscreen'}</span>
+        </button>
       </div>
     </footer>
   );
