@@ -122,6 +122,88 @@ export function Toolbar({
         </button>
 
         <button
+          className={`tool-btn ${currentTool === 'highlighter' ? 'active' : ''}`}
+          onClick={() => onSetTool('highlighter')}
+          title="Highlighter (H)"
+          aria-label="Highlighter tool"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15.5 3.5l5 5L7 22H2v-5L15.5 3.5z" />
+            <path d="M13 6l5 5" />
+            <line x1="2" y1="22" x2="22" y2="22" strokeWidth="1.8" />
+          </svg>
+        </button>
+
+        <button
+          className={`tool-btn ${currentTool === 'stickyNote' ? 'active' : ''}`}
+          onClick={() => onSetTool('stickyNote')}
+          title="Sticky Note & Callout Annotation (S)"
+          aria-label="Sticky note tool"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-6-6z" />
+            <polyline points="15 3 15 9 21 9" />
+            <line x1="7" y1="13" x2="13" y2="13" />
+            <line x1="7" y1="17" x2="11" y2="17" />
+          </svg>
+        </button>
+
+        <button
+          className={`tool-btn ${currentTool === 'cylinder' ? 'active' : ''}`}
+          onClick={() => onSetTool('cylinder')}
+          title="Database (Cylinder) (C)"
+          aria-label="Database cylinder tool"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <ellipse cx="12" cy="5" rx="8" ry="3" />
+            <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+            <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" />
+          </svg>
+        </button>
+
+        <button
+          className={`tool-btn ${currentTool === 'queue' ? 'active' : ''}`}
+          onClick={() => onSetTool('queue')}
+          title="Queue / Broker (Kafka/RabbitMQ) (Q)"
+          aria-label="Message queue tool"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <ellipse cx="6" cy="12" rx="3" ry="7" />
+            <line x1="6" y1="5" x2="18" y2="5" />
+            <line x1="6" y1="19" x2="18" y2="19" />
+            <path d="M18 5c1.66 0 3 3.13 3 7s-1.34 7-3 7" />
+            <line x1="14" y1="6" x2="14" y2="18" />
+            <line x1="10" y1="6" x2="10" y2="18" />
+          </svg>
+        </button>
+
+        <button
+          className={`tool-btn ${currentTool === 'cloud' ? 'active' : ''}`}
+          onClick={() => onSetTool('cloud')}
+          title="Cloud / CDN Node (W)"
+          aria-label="Cloud node tool"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17.5 19H6.5a4.5 4.5 0 0 1-.8-8.9 5.5 5.5 0 0 1 10.6-2.1A4.5 4.5 0 0 1 17.5 19z" />
+          </svg>
+        </button>
+
+        <button
+          className={`tool-btn ${currentTool === 'cache' ? 'active' : ''}`}
+          onClick={() => onSetTool('cache')}
+          title="Cache (Redis/Memcached) (M)"
+          aria-label="Cache tool"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+            <line x1="3.5" y1="9.5" x2="20.5" y2="9.5" />
+            <path d="M11.5 5.5l-2 3h3l-2 3" strokeWidth="1.5" />
+            <line x1="7" y1="13.5" x2="17" y2="13.5" strokeDasharray="2 2" />
+            <line x1="7" y1="16.5" x2="17" y2="16.5" strokeDasharray="2 2" />
+          </svg>
+        </button>
+
+        <button
           className={`tool-btn ${currentTool === 'text' ? 'active' : ''}`}
           onClick={() => onSetTool('text')}
           title="Text Box (T or 8)"

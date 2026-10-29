@@ -1,5 +1,16 @@
 import { generateId, distance, distanceToLine, pointInEllipse, pointInDiamond, deepClone } from './math.js';
 
+let measurementCanvas = null;
+let measurementCtx = null;
+function getMeasurementContext() {
+  if (typeof document === 'undefined') return null;
+  if (!measurementCtx) {
+    measurementCanvas = document.createElement('canvas');
+    measurementCtx = measurementCanvas ? measurementCanvas.getContext('2d') : null;
+  }
+  return measurementCtx;
+}
+
 export function createElement(type, props = {}, defaultState = {}) {
   const defaults = {
     id: generateId(),
@@ -26,18 +37,22 @@ export function createElement(type, props = {}, defaultState = {}) {
   return Object.assign(defaults, props);
 }
 
-export function getWrappedTextLines(el) {
+export function getWrappedTextLines(el, explicitMaxWidth = null) {
   const rawText = el.text || '';
   const lines = rawText.split('\n');
-  if (!el.width || el.width <= 0) {
+
+  // If no explicit max width is given and this is an auto-width text box,
+  // do NOT wrap lines! Text should only break where user explicitly pressed Enter.
+  if (el.type === 'text' && !el.hasCustomWidth && explicitMaxWidth === null) {
     return lines;
   }
 
-  let c = null;
-  if (typeof document !== 'undefined') {
-    c = document.createElement('canvas');
+  const widthVal = explicitMaxWidth !== null ? explicitMaxWidth : (el.width || 0);
+  if (!widthVal || widthVal <= 0) {
+    return lines;
   }
-  const ctx = c ? c.getContext('2d') : null;
+
+  const ctx = getMeasurementContext();
   const fSize = el.fontSize || 24;
   const fFamily = el.fontFamily || "'Caveat', cursive";
   const fStyle = (el.italic ? 'italic ' : '') + (el.bold ? 'bold ' : 'normal ');
@@ -46,7 +61,7 @@ export function getWrappedTextLines(el) {
     ctx.font = fStyle + fSize + 'px ' + fFamily;
   }
 
-  const maxTextWidth = Math.max(30, el.width - 16);
+  const maxTextWidth = explicitMaxWidth !== null ? Math.max(30, explicitMaxWidth) : Math.max(30, el.width - 16);
   const wrapped = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -61,6 +76,29 @@ export function getWrappedTextLines(el) {
 
     for (let w = 0; w < words.length; w++) {
       const word = words[w];
+
+      // If a single word is wider than maxTextWidth, break it by character so it never overflows
+      const wordWidth = ctx ? ctx.measureText(word).width : word.length * (fSize * 0.55);
+      if (wordWidth > maxTextWidth) {
+        if (currentLine) {
+          wrapped.push(currentLine);
+          currentLine = '';
+        }
+        let chunk = '';
+        for (let char of word) {
+          const testChunk = chunk + char;
+          const chunkWidth = ctx ? ctx.measureText(testChunk).width : testChunk.length * (fSize * 0.55);
+          if (chunkWidth > maxTextWidth && chunk) {
+            wrapped.push(chunk);
+            chunk = char;
+          } else {
+            chunk = testChunk;
+          }
+        }
+        currentLine = chunk;
+        continue;
+      }
+
       const testLine = currentLine ? (currentLine + ' ' + word) : word;
       const testWidth = ctx ? ctx.measureText(testLine).width : testLine.length * (fSize * 0.55);
 
@@ -80,11 +118,7 @@ export function getWrappedTextLines(el) {
 }
 
 export function measureText(el) {
-  let c = null;
-  if (typeof document !== 'undefined') {
-    c = document.createElement('canvas');
-  }
-  const ctx = c ? c.getContext('2d') : null;
+  const ctx = getMeasurementContext();
   const fSize = el.fontSize || 24;
   const fFamily = el.fontFamily || "'Caveat', cursive";
   const fStyle = (el.italic ? 'italic ' : '') + (el.bold ? 'bold ' : 'normal ');
@@ -99,12 +133,9 @@ export function measureText(el) {
     const w = ctx ? ctx.measureText(lines[i]).width : lines[i].length * (fSize * 0.55);
     if (w > maxW) maxW = w;
   }
-  const naturalWidth = Math.max(24, Math.ceil(maxW + 16));
-  const boxWidth = (el.width && el.width > 20) ? Math.max(el.width, 30) : naturalWidth;
-  let boxHeight = Math.max(28, Math.ceil(lines.length * fSize * 1.3 + 12));
-  if (el.height && el.height > 20) {
-    boxHeight = Math.max(boxHeight, el.height);
-  }
+  const naturalWidth = Math.max(30, Math.ceil(maxW + 20));
+  const boxWidth = (el.hasCustomWidth && el.width && el.width > 20) ? Math.max(el.width, 30) : naturalWidth;
+  const boxHeight = Math.max(28, Math.ceil(lines.length * fSize * 1.3 + 12));
 
   return {
     width: boxWidth,
@@ -114,7 +145,7 @@ export function measureText(el) {
 }
 
 export function getBounds(el) {
-  if (el.type === 'line' || el.type === 'arrow' || el.type === 'freehand') {
+  if (el.type === 'line' || el.type === 'arrow' || el.type === 'freehand' || el.type === 'highlighter') {
     if (!el.points || el.points.length === 0) {
       return { x: el.x, y: el.y, width: 0, height: 0, x2: el.x, y2: el.y };
     }
@@ -161,11 +192,34 @@ export function getBounds(el) {
   return { x: x, y: y, width: w, height: h, x2: x + w, y2: y + h };
 }
 
+export function getConnectionPoints(el) {
+  const CONNECTABLE = [
+    'rectangle', 'roundRect', 'ellipse', 'diamond', 'stickyNote',
+    'cylinder', 'queue', 'cloud', 'cache'
+  ];
+  if (!CONNECTABLE.includes(el.type)) return [];
+  const b = getBounds(el);
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  return [
+    { id: 'top',    x: cx,           y: b.y,            elementId: el.id },
+    { id: 'right',  x: b.x + b.width, y: cy,            elementId: el.id },
+    { id: 'bottom', x: cx,           y: b.y + b.height, elementId: el.id },
+    { id: 'left',   x: b.x,         y: cy,             elementId: el.id },
+  ];
+}
+
 export function hitTest(el, px, py, threshold = 10) {
   const b = getBounds(el);
 
-  if (el.type === 'rectangle' || el.type === 'roundRect' || el.type === 'image') {
-    if (el.fillColor !== 'transparent' || el.type === 'image') {
+  if (
+    el.type === 'rectangle' || el.type === 'roundRect' || el.type === 'image' || el.type === 'stickyNote' ||
+    el.type === 'cylinder' || el.type === 'queue' || el.type === 'cloud' || el.type === 'cache'
+  ) {
+    if (
+      el.fillColor !== 'transparent' || el.type === 'image' || el.type === 'stickyNote' ||
+      el.type === 'cylinder' || el.type === 'queue' || el.type === 'cloud' || el.type === 'cache'
+    ) {
       return px >= b.x - threshold && px <= b.x2 + threshold && py >= b.y - threshold && py <= b.y2 + threshold;
     }
     return distanceToLine(px, py, b.x, b.y, b.x2, b.y) < threshold ||
@@ -227,13 +281,14 @@ export function hitTest(el, px, py, threshold = 10) {
     return false;
   }
 
-  if (el.type === 'freehand') {
+  if (el.type === 'freehand' || el.type === 'highlighter') {
     if (!el.points || el.points.length === 0) return false;
+    const thresh = Math.max(threshold, (el.strokeWidth || 20) / 2);
     if (el.points.length === 1) {
-      return distance(px, py, el.points[0].x, el.points[0].y) < threshold;
+      return distance(px, py, el.points[0].x, el.points[0].y) < thresh;
     }
     for (let j = 0; j < el.points.length - 1; j++) {
-      if (distanceToLine(px, py, el.points[j].x, el.points[j].y, el.points[j+1].x, el.points[j+1].y) < threshold) {
+      if (distanceToLine(px, py, el.points[j].x, el.points[j].y, el.points[j+1].x, el.points[j+1].y) < thresh) {
         return true;
       }
     }
@@ -261,7 +316,7 @@ export function getHandles(el) {
     ];
   }
 
-  if (el.type === 'freehand') {
+  if (el.type === 'freehand' || el.type === 'highlighter') {
     return [];
   }
 
@@ -320,6 +375,7 @@ export function resize(el, handlePos, mouseX, mouseY, ob, origFontSize, origWidt
   }
 
   if (el.type === 'text') {
+    el.hasCustomWidth = true;
     const baseFontSize = origFontSize || el.fontSize || 24;
     const baseWidth = origWidth || ob.width || 100;
     const baseHeight = origHeight || ob.height || 40;

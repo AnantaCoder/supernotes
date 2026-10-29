@@ -132,7 +132,7 @@ export function App() {
       setFillColor(first.fillColor);
     }
 
-    const textEl = selected.find(el => el.type === 'text');
+    const textEl = selected.find(el => el.type === 'text' || el.type === 'stickyNote');
     if (textEl) {
       if (textEl.fontSize) setFontSize(textEl.fontSize);
       if (textEl.fontFamily) setFontFamily(textEl.fontFamily);
@@ -237,13 +237,16 @@ export function App() {
 
   const handleChangeFontFamily = (newFamily) => {
     setFontFamily(newFamily);
-    const selectedTexts = elements.filter(el => selectedIds.has(el.id) && el.type === 'text');
+    const selectedTexts = elements.filter(el => selectedIds.has(el.id) && (el.type === 'text' || el.type === 'stickyNote'));
     if (selectedTexts.length > 0) {
       const updated = elements.map(el => {
-        if (selectedIds.has(el.id) && el.type === 'text') {
+        if (selectedIds.has(el.id) && (el.type === 'text' || el.type === 'stickyNote')) {
           const clone = { ...el, fontFamily: newFamily };
-          const tb = measureText(clone);
-          clone.height = tb.height;
+          if (clone.type === 'text') {
+            const tb = measureText(clone);
+            if (!clone.hasCustomWidth) clone.width = tb.width;
+            clone.height = tb.height;
+          }
           return clone;
         }
         return el;
@@ -255,13 +258,16 @@ export function App() {
 
   const handleChangeFontSize = (newSize) => {
     setFontSize(newSize);
-    const selectedTexts = elements.filter(el => selectedIds.has(el.id) && el.type === 'text');
+    const selectedTexts = elements.filter(el => selectedIds.has(el.id) && (el.type === 'text' || el.type === 'stickyNote'));
     if (selectedTexts.length > 0) {
       const updated = elements.map(el => {
-        if (selectedIds.has(el.id) && el.type === 'text') {
+        if (selectedIds.has(el.id) && (el.type === 'text' || el.type === 'stickyNote')) {
           const clone = { ...el, fontSize: newSize };
-          const tb = measureText(clone);
-          clone.height = tb.height;
+          if (clone.type === 'text') {
+            const tb = measureText(clone);
+            if (!clone.hasCustomWidth) clone.width = tb.width;
+            clone.height = tb.height;
+          }
           return clone;
         }
         return el;
@@ -272,7 +278,7 @@ export function App() {
   };
 
   const handleToggleFormatting = (prop) => {
-    const selectedTexts = elements.filter(el => selectedIds.has(el.id) && el.type === 'text');
+    const selectedTexts = elements.filter(el => selectedIds.has(el.id) && (el.type === 'text' || el.type === 'stickyNote'));
 
     if (selectedTexts.length > 0) {
       const newVal = !selectedTexts[0][prop];
@@ -281,10 +287,13 @@ export function App() {
       if (prop === 'underline') setIsUnderline(newVal);
 
       const updated = elements.map(el => {
-        if (selectedIds.has(el.id) && el.type === 'text') {
+        if (selectedIds.has(el.id) && (el.type === 'text' || el.type === 'stickyNote')) {
           const clone = { ...el, [prop]: newVal };
-          const tb = measureText(clone);
-          clone.height = tb.height;
+          if (clone.type === 'text') {
+            const tb = measureText(clone);
+            if (!clone.hasCustomWidth) clone.width = tb.width;
+            clone.height = tb.height;
+          }
           return clone;
         }
         return el;
@@ -333,12 +342,35 @@ export function App() {
       deltaY = customCanvasPt.y - bounds.y;
     }
 
+    const idMap = new Map();
+    items.forEach(item => {
+      idMap.set(item.id, generateId());
+    });
+
     const newIds = new Set();
     const cloned = items.map(item => {
       const clone = deepClone(item);
-      clone.id = generateId();
+      clone.id = idMap.get(item.id);
       clone.seed = Math.floor(Math.random() * 2147483647);
       move(clone, deltaX, deltaY);
+
+      // Re-map arrow bindings to the cloned shapes if both were copied;
+      // otherwise detach the binding so it does not stay tethered to the original element.
+      if (clone.startBinding) {
+        if (idMap.has(clone.startBinding.elementId)) {
+          clone.startBinding = { ...clone.startBinding, elementId: idMap.get(clone.startBinding.elementId) };
+        } else {
+          clone.startBinding = null;
+        }
+      }
+      if (clone.endBinding) {
+        if (idMap.has(clone.endBinding.elementId)) {
+          clone.endBinding = { ...clone.endBinding, elementId: idMap.get(clone.endBinding.elementId) };
+        } else {
+          clone.endBinding = null;
+        }
+      }
+
       newIds.add(clone.id);
       return clone;
     });
@@ -445,7 +477,7 @@ export function App() {
 
       // Tool shortcuts (without Ctrl)
       if (!isCmdOrCtrl) {
-        if (key === 'g') setCurrentTool(prev => { toggleGrid(); return prev; });
+        if (key === 'g') toggleGrid();
         else if (key === 'v' || key === '1') setCurrentTool('select');
         else if (key === 'r' || key === '2') setCurrentTool('rectangle');
         else if (key === 'u' || key === '9') setCurrentTool('roundRect');
@@ -454,6 +486,12 @@ export function App() {
         else if (key === 'l' || key === '5') setCurrentTool('line');
         else if (key === 'a' || key === '6') setCurrentTool('arrow');
         else if (key === 'p' || key === '7') setCurrentTool('freehand');
+        else if (key === 'h') setCurrentTool('highlighter');
+        else if (key === 's') setCurrentTool('stickyNote');
+        else if (key === 'c') setCurrentTool('cylinder');
+        else if (key === 'q') setCurrentTool('queue');
+        else if (key === 'w') setCurrentTool('cloud');
+        else if (key === 'm') setCurrentTool('cache');
         else if (key === 't' || key === '8') setCurrentTool('text');
       }
     };

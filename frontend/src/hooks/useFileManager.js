@@ -336,7 +336,12 @@ export function useFileManager({ onFileLoaded }) {
         }
 
         const validElements = [];
-        const allowedTypes = ['rectangle', 'roundRect', 'ellipse', 'diamond', 'line', 'arrow', 'freehand', 'text', 'image'];
+        const allowedTypes = [
+          'rectangle', 'roundRect', 'ellipse', 'diamond',
+          'line', 'arrow', 'freehand', 'highlighter',
+          'stickyNote', 'text', 'image',
+          'cylinder', 'queue', 'cloud', 'cache'
+        ];
         for (let i = 0; i < rawElements.length; i++) {
           const item = rawElements[i];
           if (item && typeof item === 'object' && allowedTypes.includes(item.type)) {

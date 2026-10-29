@@ -9,7 +9,16 @@ export function StatusBar({
   onZoomOut,
   onResetZoom
 }) {
-  const toolName = tool ? (tool === 'roundRect' ? 'Rounded Rectangle' : (tool.charAt(0).toUpperCase() + tool.slice(1))) : 'Select';
+  const toolName = tool ? (
+    tool === 'roundRect' ? 'Rounded Rectangle' :
+    tool === 'stickyNote' ? 'Sticky Note' :
+    tool === 'highlighter' ? 'Highlighter' :
+    tool === 'cylinder' ? 'Database (Cylinder)' :
+    tool === 'queue' ? 'Queue / Broker (Kafka/RabbitMQ)' :
+    tool === 'cloud' ? 'Cloud / CDN Node' :
+    tool === 'cache' ? 'Cache (Redis)' :
+    (tool.charAt(0).toUpperCase() + tool.slice(1))
+  ) : 'Select';
   const zoomPct = Math.round(zoom * 100) + '%';
 
   const isSaving = dbStatus.status === 'saving';

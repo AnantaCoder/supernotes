@@ -16,9 +16,25 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 function getDb() {
   if (!db) {
     db = new DatabaseSync(DB_PATH);
+    configurePragmas();
     initTables();
   }
   return db;
+}
+
+function configurePragmas() {
+  try {
+    // Performance & concurrency optimizations for SQLite
+    db.exec(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA temp_store = MEMORY;
+      PRAGMA cache_size = -64000;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (err) {
+    console.error('Failed to configure SQLite pragmas:', err);
+  }
 }
 
 function initTables() {
@@ -33,7 +49,9 @@ function initTables() {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       deleted_at INTEGER DEFAULT NULL
-    )
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_files_active ON files (deleted_at, updated_at DESC);
   `);
 
   // Ensure deleted_at column exists for existing tables

@@ -1034,6 +1034,186 @@ html, body {
   word-break: break-word;
 }
 
+#text-input.sticky-note-input {
+  box-sizing: border-box !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  overflow: hidden !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.35 !important;
+}
+
+#text-input.sticky-note-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+#text-input.arch-label-input {
+  box-sizing: border-box !important;
+  background-color: var(--surface) !important;
+  border: 1.5px solid var(--accent) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-xs) !important;
+  padding: 2px 6px !important;
+  outline: none !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  line-height: 1.2 !important;
+}
+
+/* Floating Contextual Inspector (Sticky Notes & Architecture Shapes) */
+.canvas-floating-inspector {
+  position: absolute;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: translateX(-50%);
+  animation: fadeInInspector 0.15s ease-out;
+  pointer-events: auto;
+  user-select: none;
+}
+
+@keyframes fadeInInspector {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.floating-swatches-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pastel-swatch-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.pastel-swatch-btn:hover {
+  transform: scale(1.18);
+}
+
+.pastel-swatch-btn.active {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.floating-bar-divider {
+  width: 1px;
+  height: 18px;
+  background-color: var(--border);
+  margin: 0 3px;
+}
+
+.floating-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.callout-pill-btn,
+.arch-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.callout-pill-btn:hover,
+.arch-preset-btn:hover {
+  background-color: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.callout-pill-btn.active,
+.arch-preset-btn.active {
+  background-color: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.callout-pill-clear-btn {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background-color: var(--surface-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.callout-pill-clear-btn:hover {
+  background-color: var(--danger-subtle);
+  color: var(--danger);
+}
+
+.arch-edit-label-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--border);
+  background-color: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.arch-edit-label-btn:hover {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.arch-preset-icon {
+  font-size: 11px;
+}
+
 /* Floating Apple-Style Canvas Zoom Widget */
 .canvas-zoom-pill {
   position: absolute;

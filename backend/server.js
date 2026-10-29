@@ -62,7 +62,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const pathname = decodeURI(parsedUrl.pathname);
+  let pathname;
+  try {
+    pathname = decodeURI(parsedUrl.pathname);
+  } catch (e) {
+    pathname = parsedUrl.pathname;
+  }
 
   // ==================== REST API ENDPOINTS ====================
   if (pathname.startsWith('/api/')) {
