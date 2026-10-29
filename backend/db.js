@@ -314,6 +314,9 @@ function emptyTrash() {
 }
 
 function backupDatabase(targetPath) {
+  if (!targetPath || typeof targetPath !== 'string' || !targetPath.toLowerCase().endsWith('.db')) {
+    throw new Error('Invalid backup target path: must end with .db');
+  }
   const database = getDb();
   try {
     database.exec('PRAGMA wal_checkpoint(TRUNCATE)');
@@ -322,7 +325,7 @@ function backupDatabase(targetPath) {
   if (fs.existsSync(targetPath)) {
     fs.unlinkSync(targetPath);
   }
-  const cleanPath = targetPath.replace(/\\/g, '/').replace(/'/g, "''");
+  const cleanPath = path.resolve(targetPath).replace(/\\/g, '/').replace(/'/g, "''");
   database.exec(`VACUUM INTO '${cleanPath}'`);
   return targetPath;
 }

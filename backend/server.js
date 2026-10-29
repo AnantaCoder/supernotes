@@ -1,17 +1,20 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { exec } = require('child_process');
 const db = require('./db');
 
-const PORT = process.env.PORT || 5050;
+// Bind strictly to 127.0.0.1 (localhost) so port 5050 is NEVER exposed to Wi-Fi / LAN
+const PORT = parseInt(process.env.PORT, 10) || 5050;
+const HOST = process.env.HOST || '127.0.0.1';
 const BASE_DIR = __dirname;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
-  '.json': 'application/json',
+  '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
@@ -19,12 +22,39 @@ const MIME_TYPES = {
   '.webmanifest': 'application/manifest+json'
 };
 
+// Safe origins for development & production localhost
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5050',
+  'http://127.0.0.1:5050'
+]);
+
+function getCorsHeaders(req) {
+  const origin = req.headers.origin;
+  const headers = {
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Requested-With',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin'
+  };
+  // Strict origin check: Prevents external malicious sites from accessing local notes via DNS rebinding
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  return headers;
+}
+
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
+    // Limit request body to 15MB (drawing elements in JSON rarely exceed 1-2MB)
+    const MAX_SIZE = 15 * 1024 * 1024;
     req.on('data', chunk => {
       body += chunk;
-      if (body.length > 50 * 1024 * 1024) {
+      if (body.length > MAX_SIZE) {
+        req.destroy();
         reject(new Error('Payload too large'));
       }
     });
@@ -33,31 +63,31 @@ function parseBody(req) {
       try {
         resolve(JSON.parse(body));
       } catch (e) {
-        reject(e);
+        reject(new Error('Invalid JSON format'));
       }
     });
-    req.on('error', reject);
+    req.on('error', err => reject(err));
   });
 }
 
-function sendJson(res, statusCode, data) {
+function sendJson(res, statusCode, data, req) {
+  const corsHeaders = req ? getCorsHeaders(req) : {};
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    ...corsHeaders
   });
   res.end(JSON.stringify(data));
+}
+
+// Strict validation for file IDs to prevent path traversal or query injection
+function isValidFileId(id) {
+  return typeof id === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(id);
 }
 
 const server = http.createServer(async (req, res) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
+    res.writeHead(204, getCorsHeaders(req));
     res.end();
     return;
   }
@@ -70,25 +100,32 @@ const server = http.createServer(async (req, res) => {
     pathname = parsedUrl.pathname;
   }
 
+  // Null byte injection protection
+  if (pathname.includes('\0')) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('Bad Request');
+    return;
+  }
+
   // ==================== REST API ENDPOINTS ====================
   if (pathname.startsWith('/api/')) {
     try {
       // GET /api/files - List active files
       if (req.method === 'GET' && pathname === '/api/files') {
         const files = db.listFiles();
-        return sendJson(res, 200, { success: true, files });
+        return sendJson(res, 200, { success: true, files }, req);
       }
 
       // GET /api/backup - Download standalone SQLite database backup file
       if (req.method === 'GET' && pathname === '/api/backup') {
-        const os = require('os');
         const today = new Date().toISOString().slice(0, 10);
         const fileName = `supernotes-backup-${today}.db`;
         const tempPath = path.join(os.tmpdir(), fileName);
         db.backupDatabase(tempPath);
         res.writeHead(200, {
           'Content-Type': 'application/x-sqlite3',
-          'Content-Disposition': `attachment; filename="${fileName}"`
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'X-Content-Type-Options': 'nosniff'
         });
         const readStream = fs.createReadStream(tempPath);
         readStream.pipe(res);
@@ -101,79 +138,86 @@ const server = http.createServer(async (req, res) => {
       // GET /api/trash - List files in trash
       if (req.method === 'GET' && pathname === '/api/trash') {
         const trash = db.listTrash();
-        return sendJson(res, 200, { success: true, trash });
+        return sendJson(res, 200, { success: true, trash }, req);
       }
 
       // POST /api/files/:id/trash - Move file to trash
       if (req.method === 'POST' && pathname.endsWith('/trash') && pathname.startsWith('/api/files/')) {
         const fileId = pathname.slice('/api/files/'.length, -'/trash'.length);
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const ok = db.moveToTrash(fileId);
-        return sendJson(res, 200, { success: ok });
+        return sendJson(res, 200, { success: ok }, req);
       }
 
       // POST /api/files/:id/restore - Restore file from trash
       if (req.method === 'POST' && pathname.endsWith('/restore') && pathname.startsWith('/api/files/')) {
         const fileId = pathname.slice('/api/files/'.length, -'/restore'.length);
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const ok = db.restoreFile(fileId);
-        return sendJson(res, 200, { success: ok });
+        return sendJson(res, 200, { success: ok }, req);
       }
 
       // DELETE /api/trash - Empty trash
       if (req.method === 'DELETE' && pathname === '/api/trash') {
         const count = db.emptyTrash();
-        return sendJson(res, 200, { success: true, count });
+        return sendJson(res, 200, { success: true, count }, req);
       }
 
       // DELETE /api/files/:id/permanent - Permanently delete a file
       if (req.method === 'DELETE' && pathname.endsWith('/permanent') && pathname.startsWith('/api/files/')) {
         const fileId = pathname.slice('/api/files/'.length, -'/permanent'.length);
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const ok = db.permanentDelete(fileId);
-        return sendJson(res, 200, { success: ok });
+        return sendJson(res, 200, { success: ok }, req);
       }
 
       // GET /api/files/:id - Get specific file
       if (req.method === 'GET' && pathname.startsWith('/api/files/')) {
         const fileId = pathname.replace('/api/files/', '').trim();
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const file = db.getFile(fileId);
         if (!file) {
-          return sendJson(res, 404, { success: false, error: 'File not found' });
+          return sendJson(res, 404, { success: false, error: 'File not found' }, req);
         }
-        return sendJson(res, 200, { success: true, file });
+        return sendJson(res, 200, { success: true, file }, req);
       }
 
       // POST /api/files - Create a file
       if (req.method === 'POST' && pathname === '/api/files') {
         const body = await parseBody(req);
+        if (body.id && !isValidFileId(body.id)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const file = db.createFile(body);
-        return sendJson(res, 201, { success: true, file });
+        return sendJson(res, 201, { success: true, file }, req);
       }
 
       // PUT /api/files/:id - Update a file
       if (req.method === 'PUT' && pathname.startsWith('/api/files/')) {
         const fileId = pathname.replace('/api/files/', '').trim();
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const body = await parseBody(req);
         const file = db.updateFile(fileId, body);
-        return sendJson(res, 200, { success: true, file });
+        return sendJson(res, 200, { success: true, file }, req);
       }
 
       // DELETE /api/files/:id - Delete a file (moves to trash)
       if (req.method === 'DELETE' && pathname.startsWith('/api/files/')) {
         const fileId = pathname.replace('/api/files/', '').trim();
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const ok = db.moveToTrash(fileId);
-        return sendJson(res, 200, { success: ok });
+        return sendJson(res, 200, { success: ok }, req);
       }
 
       // POST /api/migrate - Batch migrate legacy localStorage files into SQLite
       if (req.method === 'POST' && pathname === '/api/migrate') {
         const body = await parseBody(req);
         const result = db.migrateFiles(body.files);
-        return sendJson(res, 200, { success: true, ...result });
+        return sendJson(res, 200, { success: true, ...result }, req);
       }
 
-      return sendJson(res, 404, { success: false, error: 'Endpoint not found' });
+      return sendJson(res, 404, { success: false, error: 'Endpoint not found' }, req);
     } catch (err) {
-      console.error('API Error:', err);
-      return sendJson(res, 500, { success: false, error: err.message || 'Server error' });
+      console.error('API Error:', err.message);
+      return sendJson(res, 500, { success: false, error: 'Internal server error' }, req);
     }
   }
 
@@ -187,19 +231,45 @@ const server = http.createServer(async (req, res) => {
   const hasDist = fs.existsSync(path.join(distDir, 'index.html'));
   const staticRoot = hasDist ? distDir : path.join(BASE_DIR, '..', 'frontend');
 
+  const normalizedStaticRoot = path.normalize(path.resolve(staticRoot));
   let reqPath = pathname === '/' ? '/index.html' : pathname;
-  let filePath = path.resolve(staticRoot, '.' + reqPath);
+  let filePath = path.normalize(path.resolve(staticRoot, '.' + reqPath));
+
+  // Verify filePath is strictly inside staticRoot (Path Traversal Protection)
+  const relative = path.relative(normalizedStaticRoot, filePath);
+  const isInsideStaticRoot = !relative.startsWith('..') && !path.isAbsolute(relative);
+
+  if (!isInsideStaticRoot) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
+
+  // Block access to database files, dotfiles, scripts, and sensitive extensions
+  const lower = filePath.toLowerCase();
+  const isForbidden = (
+    lower.includes('.git') ||
+    lower.endsWith('.db') ||
+    lower.endsWith('.db-wal') ||
+    lower.endsWith('.db-shm') ||
+    lower.endsWith('.sqlite') ||
+    lower.endsWith('.sqlite3') ||
+    lower.endsWith('.env') ||
+    lower.endsWith('.bat') ||
+    lower.endsWith('.vbs') ||
+    lower.endsWith('.ps1') ||
+    lower.endsWith('.sh') ||
+    lower.endsWith('.cmd')
+  );
+  if (isForbidden) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
 
   // If hasDist is true and requested path is not a file, fallback to dist/index.html (SPA routing)
   if (hasDist && (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile())) {
     filePath = path.join(distDir, 'index.html');
-  }
-
-  // Prevent path traversal & forbid database / source protection
-  if (!filePath.startsWith(staticRoot) || filePath.endsWith('.db') || filePath.endsWith('.sqlite')) {
-    res.writeHead(403, { 'Content-Type': 'text/plain' });
-    res.end('Forbidden');
-    return;
   }
 
   fs.stat(filePath, (err, stats) => {
@@ -212,7 +282,12 @@ const server = http.createServer(async (req, res) => {
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'Referrer-Policy': 'strict-origin-when-cross-origin'
+    });
     fs.createReadStream(filePath).pipe(res);
   });
 });
@@ -232,11 +307,11 @@ if (require.main === module) {
     }
   });
 
-  server.listen(PORT, () => {
+  server.listen(PORT, HOST, () => {
     const url = `http://localhost:${PORT}`;
     console.log(`\n========================================`);
-    console.log(`  SuperNotes with SQLite DB running at:`);
-    console.log(`  ${url}`);
+    console.log(`  SuperNotes securely bound to: ${HOST}:${PORT}`);
+    console.log(`  Access URL: ${url}`);
     console.log(`========================================\n`);
 
     if (process.env.NO_OPEN !== 'true' && !process.env.CI) {

@@ -1,0 +1,43 @@
+# ========================================================
+# SuperNotes Git Ignore Rules (Security & Privacy)
+# ========================================================
+
+# 1. Databases & Backups (CRITICAL: Never push local notes/whiteboard data)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backups/
+*.supernotes
+
+# 2. Dependencies
+node_modules/
+*/node_modules/
+
+# 3. Build & cache artifacts
+dist/
+*/dist/
+.vite/
+.vite-temp/
+*.tsbuildinfo
+
+# 4. Environment & Secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+
+# 5. Logs & runtime data
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# 6. Operating System & IDE metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.tmp
