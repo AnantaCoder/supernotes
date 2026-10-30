@@ -219,11 +219,11 @@ export function Toolbar({
           aria-label="Cache tool"
         >
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
-            <line x1="3.5" y1="9.5" x2="20.5" y2="9.5" />
-            <path d="M11.5 5.5l-2 3h3l-2 3" strokeWidth="1.5" />
-            <line x1="7" y1="13.5" x2="17" y2="13.5" strokeDasharray="2 2" />
-            <line x1="7" y1="16.5" x2="17" y2="16.5" strokeDasharray="2 2" />
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <path d="M3.27 6.96 L8.2 9.8" />
+            <path d="M15.8 9.8 L20.73 6.96" />
+            <path d="M12 17.5 V22" />
+            <polygon points="13 3.5 8 11.2 11.8 11.2 10.5 18 16 10 12.2 10 13 3.5" fill="currentColor" stroke="none" />
           </svg>
         </button>
 

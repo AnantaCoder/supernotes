@@ -752,29 +752,62 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.restore();
     }
   } else if (el.type === 'cache') {
-    // In-Memory Cache (Redis) - Clean, Modern Architectural Card
+    // In-Memory Cache (Redis) - Minimal 3D Box with Thunder Logo
     const b = getBounds(el);
     const bw = Math.max(50, b.width);
     const bh = Math.max(36, b.height);
-    const r = Math.min(10, Math.max(6, Math.min(bw, bh) * 0.12));
-    const headerH = Math.min(26, Math.max(20, Math.round(bh * 0.28)));
+    const depth = Math.min(14, Math.max(6, Math.round(Math.min(bw, bh) * 0.16)));
+
+    const fx = b.x;
+    const fy = b.y + depth;
+    const fw = bw - depth;
+    const fh = bh - depth;
 
     if (rc) {
-      const svgPath = getRoundRectPath(b.x, b.y, bw, bh, r);
-      rc.path(svgPath, opts);
-
-      // Clean, single divider line separating the header from the cache body
-      rc.line(b.x, b.y + headerH, b.x + bw, b.y + headerH, {
-        ...opts,
-        strokeWidth: Math.max(1, (el.strokeWidth || 2) * 0.75)
-      });
+      // 3D Top Face
+      rc.polygon([[fx, fy], [fx + depth, b.y], [b.x + bw, b.y], [fx + fw, fy]], opts);
+      // 3D Right Side Face
+      rc.polygon([[fx + fw, fy], [b.x + bw, b.y], [b.x + bw, b.y + bh - depth], [fx + fw, b.y + bh]], opts);
+      // Front Face
+      rc.rectangle(fx, fy, fw, fh, opts);
     } else {
+      // 3D Top Face
       ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(b.x, b.y, bw, bh, r);
-      } else {
-        drawRoundRect(ctx, b.x, b.y, bw, bh, r);
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + depth, b.y);
+      ctx.lineTo(b.x + bw, b.y);
+      ctx.lineTo(fx + fw, fy);
+      ctx.closePath();
+      if (fillColor !== 'transparent') {
+        ctx.fillStyle = fillColor;
+        ctx.globalAlpha = 0.85;
+        ctx.fill();
+        ctx.globalAlpha = 1;
       }
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = el.strokeWidth || 2;
+      ctx.stroke();
+
+      // 3D Right Side Face
+      ctx.beginPath();
+      ctx.moveTo(fx + fw, fy);
+      ctx.lineTo(b.x + bw, b.y);
+      ctx.lineTo(b.x + bw, b.y + bh - depth);
+      ctx.lineTo(fx + fw, b.y + bh);
+      ctx.closePath();
+      if (fillColor !== 'transparent') {
+        ctx.fillStyle = fillColor;
+        ctx.globalAlpha = 0.65;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = el.strokeWidth || 2;
+      ctx.stroke();
+
+      // Front Face
+      ctx.beginPath();
+      ctx.rect(fx, fy, fw, fh);
       if (fillColor !== 'transparent') {
         ctx.fillStyle = fillColor;
         ctx.fill();
@@ -782,46 +815,58 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = el.strokeWidth || 2;
       ctx.stroke();
-
-      // Clean divider line
-      ctx.beginPath();
-      ctx.moveTo(b.x, b.y + headerH);
-      ctx.lineTo(b.x + bw, b.y + headerH);
-      ctx.stroke();
     }
 
     // Name / Label determination (default: 'Redis')
     const rawText = el.text !== undefined && el.text !== null ? el.text.trim() : 'Redis';
-    const displayName = rawText || 'Redis';
+    const displayName = rawText.split('\n')[0].trim() || 'Redis';
 
-    // Header Tag: Sleek Flash Icon + User's Custom Name (default: REDIS)
+    // Vector Thunder Logo + Label on Front Face
     ctx.save();
-    const tagSize = Math.max(9, Math.min(12, Math.round(headerH * 0.5)));
-    ctx.font = "bold " + tagSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const fSize = Math.max(10, Math.min(15, Math.round(fh * 0.22)));
+    ctx.font = "bold " + fSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.fillStyle = strokeColor;
+
+    const boltH = Math.max(10, Math.min(18, Math.round(fh * 0.32)));
+    const boltW = Math.round(boltH * 0.58);
+
+    const shownText = displayName.length <= 16 ? displayName.toUpperCase() : displayName;
+    const textW = ctx.measureText(shownText).width;
+    const totalW = boltW + 5 + textW;
+    const startX = fx + Math.max(6, (fw - totalW) / 2);
+    const midY = fy + (rawText.includes('\n') ? fh * 0.38 : fh * 0.5);
+
+    // Draw vector thunder logo on front face
+    ctx.beginPath();
+    const bx = startX;
+    const by = midY - boltH / 2;
+    ctx.moveTo(bx + boltW * 0.65, by);
+    ctx.lineTo(bx, by + boltH * 0.55);
+    ctx.lineTo(bx + boltW * 0.45, by + boltH * 0.55);
+    ctx.lineTo(bx + boltW * 0.35, by + boltH);
+    ctx.lineTo(bx + boltW, by + boltH * 0.42);
+    ctx.lineTo(bx + boltW * 0.55, by + boltH * 0.42);
+    ctx.closePath();
+    ctx.fillStyle = strokeColor;
+    ctx.fill();
+
+    // Draw label
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
+    ctx.fillText(shownText, startX + boltW + 5, midY);
 
-    const headerText = "⚡ " + (displayName.length <= 16 ? displayName.toUpperCase() : displayName);
-    ctx.fillText(headerText, b.x + 10, b.y + headerH / 2);
-    ctx.restore();
-
-    // If there are multiple lines (e.g. details/port), render secondary lines centered in the body
+    // If there are multiple lines (e.g. details/port), render secondary lines centered below
     if (rawText.includes('\n')) {
       const subLines = rawText.split('\n').slice(1).join(' ').trim();
-      if (subLines && bh > headerH + 18) {
-        ctx.save();
-        const bodyH = bh - headerH;
-        const subSize = Math.max(10, Math.min(14, Math.round(bodyH * 0.22)));
+      if (subLines && fh > 36) {
+        const subSize = Math.max(9, Math.min(12, Math.round(fh * 0.18)));
         ctx.font = subSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-        ctx.fillStyle = strokeColor;
         ctx.globalAlpha = 0.8;
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(subLines, b.x + bw / 2, b.y + headerH + bodyH / 2);
-        ctx.restore();
+        ctx.fillText(subLines, fx + fw / 2, fy + fh * 0.74);
       }
     }
+    ctx.restore();
   } else if (el.type === 'text') {
     const fSize = el.fontSize || 24;
     const fFamily = el.fontFamily || "'Patrick Hand', cursive";
