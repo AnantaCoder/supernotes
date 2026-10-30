@@ -790,29 +790,37 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.stroke();
     }
 
-    // Top Header: Sleek Flash Icon + "REDIS" Tag
+    // Name / Label determination (default: 'Redis')
+    const rawText = el.text !== undefined && el.text !== null ? el.text.trim() : 'Redis';
+    const displayName = rawText || 'Redis';
+
+    // Header Tag: Sleek Flash Icon + User's Custom Name (default: REDIS)
     ctx.save();
-    const tagSize = Math.max(9, Math.min(11, Math.round(headerH * 0.48)));
-    ctx.font = "600 " + tagSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const tagSize = Math.max(9, Math.min(12, Math.round(headerH * 0.5)));
+    ctx.font = "bold " + tagSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.fillStyle = strokeColor;
-    ctx.globalAlpha = 0.75;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText("⚡ REDIS", b.x + 10, b.y + headerH / 2);
+
+    const headerText = "⚡ " + (displayName.length <= 16 ? displayName.toUpperCase() : displayName);
+    ctx.fillText(headerText, b.x + 10, b.y + headerH / 2);
     ctx.restore();
 
-    // Body Label: Prominently and cleanly centered in the body area
-    if (el.text && el.text.trim()) {
-      ctx.save();
-      const bodyH = bh - headerH;
-      const fSize = Math.max(12, Math.min(18, Math.round(bodyH * 0.28)));
-      ctx.font = "bold " + fSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-      ctx.fillStyle = strokeColor;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const labelY = b.y + headerH + bodyH / 2;
-      ctx.fillText(el.text.trim(), b.x + bw / 2, labelY);
-      ctx.restore();
+    // If there are multiple lines (e.g. details/port), render secondary lines centered in the body
+    if (rawText.includes('\n')) {
+      const subLines = rawText.split('\n').slice(1).join(' ').trim();
+      if (subLines && bh > headerH + 18) {
+        ctx.save();
+        const bodyH = bh - headerH;
+        const subSize = Math.max(10, Math.min(14, Math.round(bodyH * 0.22)));
+        ctx.font = subSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        ctx.fillStyle = strokeColor;
+        ctx.globalAlpha = 0.8;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(subLines, b.x + bw / 2, b.y + headerH + bodyH / 2);
+        ctx.restore();
+      }
     }
   } else if (el.type === 'text') {
     const fSize = el.fontSize || 24;

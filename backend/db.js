@@ -82,6 +82,20 @@ function initTables() {
     db.exec('CREATE INDEX IF NOT EXISTS idx_files_folder ON files (folder_id)');
   } catch (e) {}
 
+  // Create file_backups table for automated disaster recovery
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS file_backups (
+        id TEXT PRIMARY KEY,
+        file_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        elements TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_file_backups ON file_backups (file_id, created_at DESC);
+    `);
+  } catch (e) {}
+
   // Purge any expired trash (older than 30 days)
   purgeExpiredTrash();
 
@@ -280,6 +294,18 @@ function updateFile(id, data) {
     return createFile({ id, ...data });
   }
 
+  // Safety Disaster Recovery: If existing note has elements and incoming data clears it, save snapshot
+  if (existing.elements && existing.elements.length > 0) {
+    if (data.elements !== undefined && data.elements.length === 0) {
+      try {
+        const backupId = 'snap-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+        database.prepare('INSERT INTO file_backups (id, file_id, name, elements, created_at) VALUES (?, ?, ?, ?, ?)').run(
+          backupId, id, existing.name || 'Untitled', JSON.stringify(existing.elements), Date.now()
+        );
+      } catch (err) {}
+    }
+  }
+
   const name = data.name !== undefined ? data.name.trim() : existing.name;
   const folderId = data.folderId !== undefined ? (data.folderId || null) : existing.folderId;
   const elements = data.elements !== undefined ? JSON.stringify(data.elements) : JSON.stringify(existing.elements);
@@ -426,6 +452,28 @@ function migrateFiles(filesList) {
   return { imported: count };
 }
 
+function listBackups(fileId) {
+  const database = getDb();
+  try {
+    const stmt = database.prepare('SELECT id, file_id, name, created_at, length(elements) as len FROM file_backups WHERE file_id = ? ORDER BY created_at DESC LIMIT 20');
+    return stmt.all(fileId);
+  } catch (e) {
+    return [];
+  }
+}
+
+function restoreBackup(fileId, backupId) {
+  const database = getDb();
+  try {
+    const row = database.prepare('SELECT * FROM file_backups WHERE file_id = ? AND id = ?').get(fileId, backupId);
+    if (!row) return null;
+    const elements = JSON.parse(row.elements || '[]');
+    return updateFile(fileId, { elements, updatedAt: Date.now() });
+  } catch (e) {
+    return null;
+  }
+}
+
 module.exports = {
   getDb,
   listFiles,
@@ -433,6 +481,8 @@ module.exports = {
   getFile,
   createFile,
   updateFile,
+  listBackups,
+  restoreBackup,
   moveToTrash,
   restoreFile,
   deleteFile,

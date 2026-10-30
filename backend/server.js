@@ -219,6 +219,25 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { success: true, count }, req);
       }
 
+      // GET /api/files/:id/backups - List historical snapshots for a file
+      if (req.method === 'GET' && pathname.endsWith('/backups') && pathname.startsWith('/api/files/')) {
+        const fileId = pathname.slice('/api/files/'.length, -'/backups'.length);
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
+        const backups = db.listBackups(fileId);
+        return sendJson(res, 200, { success: true, backups }, req);
+      }
+
+      // POST /api/files/:id/backups/:backupId/restore - Restore specific snapshot
+      if (req.method === 'POST' && pathname.includes('/backups/') && pathname.endsWith('/restore')) {
+        const parts = pathname.split('/');
+        const fileId = parts[3];
+        const backupId = parts[5];
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
+        const restored = db.restoreBackup(fileId, backupId);
+        if (!restored) return sendJson(res, 404, { success: false, error: 'Backup snapshot not found' }, req);
+        return sendJson(res, 200, { success: true, file: restored }, req);
+      }
+
       // DELETE /api/files/:id/permanent - Permanently delete a file
       if (req.method === 'DELETE' && pathname.endsWith('/permanent') && pathname.startsWith('/api/files/')) {
         const fileId = pathname.slice('/api/files/'.length, -'/permanent'.length);

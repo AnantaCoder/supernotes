@@ -20,7 +20,7 @@ export function createElement(type, props = {}, defaultState = {}) {
     width: 0,
     height: 0,
     points: [],
-    text: '',
+    text: props.text !== undefined ? props.text : (type === 'cache' ? 'Redis' : ''),
     strokeColor: defaultState.strokeColor || '#252525',
     fillColor: defaultState.noFill === false ? (defaultState.fillColor || '#a5d8ff') : 'transparent',
     strokeWidth: defaultState.strokeWidth || 2,

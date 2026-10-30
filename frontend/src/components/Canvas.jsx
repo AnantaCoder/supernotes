@@ -482,11 +482,11 @@ export function Canvas({
         posY = existingEl.y + (existingEl.calloutTag ? 36 : 14);
       } else if (['cylinder', 'queue', 'cloud', 'cache'].includes(existingEl.type)) {
         const b = getBounds(existingEl);
-        posX = b.x + 12;
         if (existingEl.type === 'cache') {
-          const headerH = Math.min(26, Math.max(20, Math.round(b.height * 0.28)));
-          posY = b.y + headerH + (b.height - headerH) / 2 - 14;
+          posX = b.x + 8;
+          posY = b.y + 2;
         } else {
+          posX = b.x + 12;
           posY = b.y + b.height / 2 - 16;
         }
       } else if (existingEl.type === 'arrow' || existingEl.type === 'line') {
@@ -503,7 +503,7 @@ export function Canvas({
       element: existingEl,
       canvasX: posX,
       canvasY: posY,
-      text: existingEl ? (existingEl.text || '') : '',
+      text: existingEl ? (existingEl.text !== undefined && existingEl.text !== null && existingEl.text !== '' ? existingEl.text : (existingEl.type === 'cache' ? 'Redis' : '')) : '',
       bold: bld, italic: itl, underline: und,
       fontSize: fSize, fontFamily: fFamily
     });
@@ -689,7 +689,7 @@ export function Canvas({
     } else if (currentTool === 'cache') {
       newEl = createElement('cache', {
         x: pt.x, y: pt.y, width: 0, height: 0,
-        text: '',
+        text: 'Redis',
         fillColor: noFill ? 'transparent' : (fillColor !== 'transparent' ? fillColor : (isDark ? '#3B1F24' : '#FEF2F2'))
       }, { strokeColor, fillColor, noFill, strokeWidth });
     } else if (currentTool === 'stickyNote') {
@@ -1230,7 +1230,10 @@ export function Canvas({
     if (hitEditable) {
       if (hitEditable.type === 'stickyNote') {
         startTextEditing(hitEditable.x + 14, hitEditable.y + (hitEditable.calloutTag ? 36 : 14), hitEditable);
-      } else if (['cylinder', 'queue', 'cloud', 'cache'].includes(hitEditable.type)) {
+      } else if (hitEditable.type === 'cache') {
+        const b = getBounds(hitEditable);
+        startTextEditing(b.x + 8, b.y + 2, hitEditable);
+      } else if (['cylinder', 'queue', 'cloud'].includes(hitEditable.type)) {
         const b = getBounds(hitEditable);
         startTextEditing(b.x + 12, b.y + b.height / 2 - 16, hitEditable);
       } else if (hitEditable.type === 'arrow' || hitEditable.type === 'line') {
@@ -1413,9 +1416,11 @@ export function Canvas({
           placeholder={
             textEdit.element?.type === 'stickyNote'
               ? "Write a note..."
-              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
-                  ? "Component Label..."
-                  : (['arrow', 'line'].includes(textEdit.element?.type) ? "Label..." : "Type text here..."))
+              : (textEdit.element?.type === 'cache'
+                  ? "Redis..."
+                  : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
+                      ? "Component Label..."
+                      : (['arrow', 'line'].includes(textEdit.element?.type) ? "Label..." : "Type text here...")))
           }
           style={{
             display: 'block',
@@ -1423,21 +1428,25 @@ export function Canvas({
             top: `${textEditorPos.y}px`,
             width: textEdit.element?.type === 'stickyNote'
               ? `${Math.max(80, (textEdit.element.width - 28) * zoom)}px`
-              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
-                  ? `${Math.max(80, (textEdit.element.width - 24) * zoom)}px`
-                  : (['arrow', 'line'].includes(textEdit.element?.type)
-                      ? `${Math.max(70, Math.min(260, (textEdit.text.length + 3) * 11 * zoom))}px`
-                      : (textEdit.element?.hasCustomWidth && textEdit.element.width > 20
-                          ? `${textEdit.element.width * zoom}px`
-                          : undefined))),
+              : (textEdit.element?.type === 'cache'
+                  ? `${Math.max(90, Math.min(220, (textEdit.element.width - 16) * zoom))}px`
+                  : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
+                      ? `${Math.max(80, (textEdit.element.width - 24) * zoom)}px`
+                      : (['arrow', 'line'].includes(textEdit.element?.type)
+                          ? `${Math.max(70, Math.min(260, (textEdit.text.length + 3) * 11 * zoom))}px`
+                          : (textEdit.element?.hasCustomWidth && textEdit.element.width > 20
+                              ? `${textEdit.element.width * zoom}px`
+                              : undefined)))),
             height: textEdit.element?.type === 'stickyNote'
               ? `${Math.max(50, (textEdit.element.height - (textEdit.element.calloutTag ? 46 : 28)) * zoom)}px`
-              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
-                  ? `${Math.max(30, 32 * zoom)}px`
-                  : (['arrow', 'line'].includes(textEdit.element?.type)
-                      ? `${Math.max(26, 28 * zoom)}px`
-                      : undefined)),
-            fontSize: `${(['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round((textEdit.element.height || 80) * 0.2))) : (['arrow', 'line'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round(textEdit.fontSize || 16))) : textEdit.fontSize)) * zoom}px`,
+              : (textEdit.element?.type === 'cache'
+                  ? `${Math.max(20, 22 * zoom)}px`
+                  : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
+                      ? `${Math.max(30, 32 * zoom)}px`
+                      : (['arrow', 'line'].includes(textEdit.element?.type)
+                          ? `${Math.max(26, 28 * zoom)}px`
+                          : undefined))),
+            fontSize: `${(textEdit.element?.type === 'cache' ? 12 : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round((textEdit.element.height || 80) * 0.2))) : (['arrow', 'line'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round(textEdit.fontSize || 16))) : textEdit.fontSize))) * zoom}px`,
             fontFamily: ['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
               ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
               : textEdit.fontFamily,
@@ -1446,7 +1455,7 @@ export function Canvas({
               : (textEdit.bold ? 'bold' : 'normal'),
             fontStyle: textEdit.italic ? 'italic' : 'normal',
             textDecoration: textEdit.underline ? 'underline' : 'none',
-            textAlign: ['cylinder', 'cloud', 'queue', 'cache', 'arrow', 'line'].includes(textEdit.element?.type) ? 'center' : 'left',
+            textAlign: ['cylinder', 'cloud', 'queue', 'arrow', 'line'].includes(textEdit.element?.type) ? 'center' : 'left',
             color: textEdit.element?.type === 'stickyNote'
               ? (resolvePastelTint(textEdit.element.tint || textEdit.element.fillColor, isDark).textColor)
               : textEditorStroke
