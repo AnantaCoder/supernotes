@@ -13,7 +13,7 @@ backups/
 
 # 2. Dependencies
 node_modules/
-*/node_modules/
+**/node_modules/
 
 # 3. Build & cache artifacts
 dist/
