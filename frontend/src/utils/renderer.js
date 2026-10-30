@@ -1,5 +1,5 @@
 import rough from 'roughjs';
-import { getBounds, getHandles, getWrappedTextLines } from './elements.js';
+import { getBounds, getHandles, getWrappedTextLines, getArrowMidpoint } from './elements.js';
 
 export function getAdaptiveStroke(color, isDark) {
   if (isDark && (color === '#1e1e1e' || color === '#000000' || color === '#252525')) {
@@ -340,6 +340,53 @@ export function renderElement(ctx, rc, el, isDark) {
           ctx.lineWidth = el.strokeWidth;
           ctx.stroke();
         }
+      }
+
+      // Render Arrow / Line Text Label in the middle portion if set
+      if (el.text && el.text.trim()) {
+        const mid = getArrowMidpoint(el);
+        const fSize = el.fontSize || 16;
+        const fFamily = el.fontFamily || "'Patrick Hand', cursive";
+        const fStyle = (el.italic ? 'italic ' : '') + (el.bold ? 'bold ' : 'normal ');
+        ctx.save();
+        ctx.font = fStyle + fSize + "px " + fFamily;
+        const rawLines = el.text.split('\n');
+        let maxW = 0;
+        for (let li = 0; li < rawLines.length; li++) {
+          const w = ctx.measureText(rawLines[li]).width;
+          if (w > maxW) maxW = w;
+        }
+        const lineHeight = fSize * 1.3;
+        const padX = 10;
+        const padY = 5;
+        const boxW = Math.max(28, maxW + padX * 2);
+        const boxH = Math.max(22, rawLines.length * lineHeight + padY * 2);
+        const boxX = mid.x - boxW / 2;
+        const boxY = mid.y - boxH / 2;
+
+        const cardBg = isDark ? '#202022' : '#FFFFFF';
+        const cardBorder = isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.16)';
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(boxX, boxY, boxW, boxH, 6);
+        } else {
+          drawRoundRect(ctx, boxX, boxY, boxW, boxH, 6);
+        }
+        ctx.fillStyle = cardBg;
+        ctx.fill();
+        ctx.strokeStyle = cardBorder;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = strokeColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (let li = 0; li < rawLines.length; li++) {
+          const lineY = boxY + padY + (li + 0.5) * lineHeight;
+          ctx.fillText(rawLines[li], mid.x, lineY);
+        }
+        ctx.restore();
       }
     }
   } else if (el.type === 'freehand') {
@@ -917,7 +964,7 @@ export function renderHoveredConnectionPoints(ctx, points, nearestPoint, isDark)
   ctx.restore();
 }
 
-export function drawGrid(ctx, viewWidth, viewHeight, zoom, scrollX, scrollY, isDark, showGrid = false) {
+export function drawGrid(ctx, viewWidth, viewHeight, zoom, scrollX, scrollY, isDark, showGrid = false, isBedtime = false) {
   if (!showGrid) return;
   const gridSize = 24;
   const startX = Math.floor((-scrollX / zoom) / gridSize) * gridSize;
@@ -926,7 +973,9 @@ export function drawGrid(ctx, viewWidth, viewHeight, zoom, scrollX, scrollY, isD
   const endY = startY + (viewHeight / zoom) + gridSize * 2;
 
   // Tiny, low-contrast dots that do not interfere with handwriting
-  ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.10)';
+  ctx.fillStyle = isBedtime
+    ? 'rgba(230, 220, 184, 0.14)'
+    : (isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.10)');
   for (let x = startX; x < endX; x += gridSize) {
     for (let y = startY; y < endY; y += gridSize) {
       ctx.fillRect(x, y, 1, 1);

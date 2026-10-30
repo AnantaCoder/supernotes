@@ -10,7 +10,8 @@ import {
   resize,
   normalizeElement,
   measureText,
-  getWrappedTextLines
+  getWrappedTextLines,
+  getArrowMidpoint
 } from '../utils/elements.js';
 import {
   renderElement,
@@ -31,10 +32,10 @@ const CALLOUT_PRESETS = [
   { id: 'Decision',   label: '💡 Decision',   tint: 'purple' }
 ];
 
-const SNAP_RADIUS = 18; // canvas units
+const SNAP_RADIUS = 28; // generous magnetic canvas units
 
 function findNearestConnectionPoint(elements, px, py, excludeId, zoom) {
-  const snapDist = SNAP_RADIUS / zoom;
+  const snapDist = Math.max(26, 32 / (zoom || 1));
   let best = null;
   let bestDist = Infinity;
   for (let i = 0; i < elements.length; i++) {
@@ -49,6 +50,19 @@ function findNearestConnectionPoint(elements, px, py, excludeId, zoom) {
       if (d < snapDist && d < bestDist) {
         bestDist = d;
         best = pt;
+      }
+    }
+    // Also if pointer is on or inside shape, snap to nearest connection point of that shape
+    if (!best && pts.length > 0 && hitTest(el, px, py, 14 / (zoom || 1))) {
+      for (let j = 0; j < pts.length; j++) {
+        const pt = pts[j];
+        const dx = pt.x - px;
+        const dy = pt.y - py;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < bestDist) {
+          bestDist = d;
+          best = pt;
+        }
       }
     }
   }
@@ -131,6 +145,7 @@ export function Canvas({
   scrollY,
   onScrollChange,
   isDark,
+  isBedtime = false,
   showGrid = false,
   onRecordHistory,
   isReadingMode = false,
@@ -224,7 +239,7 @@ export function Canvas({
     ctx.clearRect(0, 0, width, height);
 
     // 1. Grid
-    drawGrid(ctx, width, height, zoom, scrollX, scrollY, isDark, showGrid);
+    drawGrid(ctx, width, height, zoom, scrollX, scrollY, isDark, showGrid, isBedtime);
 
     // 2. Viewport transform
     ctx.translate(scrollX, scrollY);
@@ -275,7 +290,7 @@ export function Canvas({
     }
 
     ctx.restore();
-  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, showGrid, textEdit, snapVersion, isReadingMode]);
+  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, isBedtime, showGrid, textEdit, snapVersion, isReadingMode]);
 
   useEffect(() => {
     let animId = requestAnimationFrame(renderCanvas);
@@ -334,6 +349,11 @@ export function Canvas({
         const availableW = Math.max(80, (textEdit.element.width * zoom) - pad);
         textarea.style.width = availableW + 'px';
         textarea.style.height = Math.max(34, textarea.scrollHeight + 4) + 'px';
+      } else if (textEdit.element && ['arrow', 'line'].includes(textEdit.element.type)) {
+        const textLen = (textEdit.text || 'Label').length;
+        const dynamicW = Math.max(70, Math.min(300, (textLen + 3) * (textEdit.fontSize || 16) * 0.65 * zoom));
+        textarea.style.width = dynamicW + 'px';
+        textarea.style.height = Math.max(28, textarea.scrollHeight + 4) + 'px';
       } else if (textEdit.element && textEdit.element.hasCustomWidth && textEdit.element.width > 20) {
         textarea.style.width = (textEdit.element.width * zoom) + 'px';
         textarea.style.height = Math.max(38, textarea.scrollHeight + 6) + 'px';
@@ -366,10 +386,11 @@ export function Canvas({
     const trimmed = actualText.trim();
     const isSticky = current.element && current.element.type === 'stickyNote';
     const isArch = current.element && ['cylinder', 'queue', 'cloud', 'cache'].includes(current.element.type);
+    const isArrow = current.element && (current.element.type === 'arrow' || current.element.type === 'line');
 
     try {
       if (current.element) {
-        if (trimmed === '' && !isSticky && !isArch) {
+        if (trimmed === '' && !isSticky && !isArch && !isArrow) {
           const nextElements = elements.filter(el => el.id !== current.element.id);
           const nextSelected = new Set(selectedIds);
           nextSelected.delete(current.element.id);
@@ -393,7 +414,7 @@ export function Canvas({
                 const topPad = clone.calloutTag ? 46 : 28;
                 const neededHeight = Math.max(160, topPad + lines.length * fSize * 1.35 + 8);
                 clone.height = Math.max(clone.height || 160, neededHeight);
-              } else if (isArch) {
+              } else if (isArch || isArrow) {
                 clone.text = actualText;
               } else {
                 const tb = measureText(clone);
@@ -463,6 +484,10 @@ export function Canvas({
         const b = getBounds(existingEl);
         posX = b.x + 12;
         posY = b.y + b.height / 2 - 16;
+      } else if (existingEl.type === 'arrow' || existingEl.type === 'line') {
+        const mid = getArrowMidpoint(existingEl);
+        posX = mid.x;
+        posY = mid.y;
       } else {
         posX = existingEl.x;
         posY = existingEl.y;
@@ -848,11 +873,37 @@ export function Canvas({
     if (inter.type === 'resizing' && inter.resizingElement) {
       inter.hasMoved = true;
       const targetId = inter.resizingElement.id;
+      const isArrowOrLine = inter.resizingElement.type === 'arrow' || inter.resizingElement.type === 'line';
+      const handlePos = inter.resizeHandle.position;
+      let targetX = pt.x;
+      let targetY = pt.y;
+
+      if (isArrowOrLine && (handlePos === 'start' || handlePos === 'end')) {
+        const snap = findNearestConnectionPoint(elements, pt.x, pt.y, targetId, zoom);
+        let hoveredPoints = [];
+        if (snap) {
+          targetX = snap.x;
+          targetY = snap.y;
+          const boundEl = elements.find(e => e.id === snap.elementId);
+          if (boundEl) hoveredPoints = getConnectionPoints(boundEl);
+          if (handlePos === 'start') {
+            inter.pendingStartBinding = { elementId: snap.elementId, pointId: snap.id };
+          } else {
+            inter.pendingEndBinding = { elementId: snap.elementId, pointId: snap.id };
+          }
+        } else {
+          if (handlePos === 'start') inter.pendingStartBinding = null;
+          else inter.pendingEndBinding = null;
+        }
+        snapStateRef.current = { hoveredPoints, nearestPoint: snap, drawingArrowId: targetId };
+        bumpSnap();
+      }
+
       let updated = elements.map(el => {
         if (el.id === targetId) {
           const clone = { ...el, points: el.points ? el.points.map(p => ({ ...p })) : [] };
           if (el.controlPoint) clone.controlPoint = { ...el.controlPoint };
-          resize(clone, inter.resizeHandle.position, pt.x, pt.y, inter.originalBounds, inter.originalFontSize, inter.originalWidth, inter.originalHeight);
+          resize(clone, handlePos, targetX, targetY, inter.originalBounds, inter.originalFontSize, inter.originalWidth, inter.originalHeight);
           return clone;
         }
         return el;
@@ -969,17 +1020,84 @@ export function Canvas({
     }
 
     if (type === 'moving' && hadMoved) {
-      onRecordHistory(elements);
+      // For any moved arrow whose connected shape was NOT moved, detach or snap to new box
+      let changedAny = false;
+      let updated = elements.map(el => {
+        if ((el.type === 'arrow' || el.type === 'line') && selectedIds.has(el.id)) {
+          const clone = { ...el, points: el.points ? el.points.map(p => ({ ...p })) : [] };
+          let changed = false;
+          // If shape it was attached to was not moved, detach old bindings
+          if (clone.startBinding && !selectedIds.has(clone.startBinding.elementId)) {
+            clone.startBinding = null;
+            changed = true;
+          }
+          if (clone.endBinding && !selectedIds.has(clone.endBinding.elementId)) {
+            clone.endBinding = null;
+            changed = true;
+          }
+          // Magnetically snap endpoints to boxes at new location
+          if (clone.points && clone.points.length >= 2) {
+            const p0 = clone.points[0];
+            const p1 = clone.points[clone.points.length - 1];
+            const startSnap = findNearestConnectionPoint(elements, p0.x, p0.y, clone.id, zoom);
+            if (startSnap) {
+              clone.points[0] = { x: startSnap.x, y: startSnap.y };
+              clone.x = startSnap.x;
+              clone.y = startSnap.y;
+              clone.startBinding = { elementId: startSnap.elementId, pointId: startSnap.id };
+              changed = true;
+            }
+            const endSnap = findNearestConnectionPoint(elements, p1.x, p1.y, clone.id, zoom);
+            if (endSnap) {
+              clone.points[clone.points.length - 1] = { x: endSnap.x, y: endSnap.y };
+              clone.endBinding = { elementId: endSnap.elementId, pointId: endSnap.id };
+              changed = true;
+            }
+          }
+          if (changed) {
+            changedAny = true;
+            return clone;
+          }
+        }
+        return el;
+      });
+      if (changedAny) {
+        onChangeElements(updated);
+        onRecordHistory(updated);
+      } else {
+        onRecordHistory(elements);
+      }
       return;
     }
 
     if (type === 'resizing') {
       if (inter.resizingElement) {
-        normalizeElement(inter.resizingElement);
+        const isArrowOrLine = inter.resizingElement.type === 'arrow' || inter.resizingElement.type === 'line';
+        const targetId = inter.resizingElement.id;
+        const startBinding = inter.pendingStartBinding;
+        const endBinding = inter.pendingEndBinding;
+        const handlePos = inter.resizeHandle?.position;
+
+        if (isArrowOrLine && (handlePos === 'start' || handlePos === 'end')) {
+          const withBindings = elements.map(el => {
+            if (el.id !== targetId) return el;
+            const clone = { ...el };
+            if (handlePos === 'start') {
+              clone.startBinding = startBinding || null;
+            } else if (handlePos === 'end') {
+              clone.endBinding = endBinding || null;
+            }
+            return clone;
+          });
+          onChangeElements(withBindings);
+          onRecordHistory(withBindings);
+        } else {
+          normalizeElement(inter.resizingElement);
+          if (hadMoved) onRecordHistory(elements);
+        }
         inter.resizingElement = null;
         inter.resizeHandle = null;
       }
-      if (hadMoved) onRecordHistory(elements);
       return;
     }
 
@@ -1026,12 +1144,35 @@ export function Canvas({
           onSelectIds(new Set());
         } else {
           // Attach bindings to the final element
-          if ((dEl.type === 'arrow' || dEl.type === 'line') && (startBinding || endBinding)) {
+          if (dEl.type === 'arrow' || dEl.type === 'line') {
+            let finalStartBinding = startBinding;
+            let finalEndBinding = endBinding;
+            if (dEl.points && dEl.points.length >= 2) {
+              const p0 = dEl.points[0];
+              const p1 = dEl.points[dEl.points.length - 1];
+              if (!finalStartBinding) {
+                const sSnap = findNearestConnectionPoint(elements, p0.x, p0.y, dEl.id, zoom);
+                if (sSnap) {
+                  finalStartBinding = { elementId: sSnap.elementId, pointId: sSnap.id };
+                  dEl.points[0] = { x: sSnap.x, y: sSnap.y };
+                  dEl.x = sSnap.x;
+                  dEl.y = sSnap.y;
+                }
+              }
+              if (!finalEndBinding) {
+                const eSnap = findNearestConnectionPoint(elements, p1.x, p1.y, dEl.id, zoom);
+                if (eSnap) {
+                  finalEndBinding = { elementId: eSnap.elementId, pointId: eSnap.id };
+                  dEl.points[dEl.points.length - 1] = { x: eSnap.x, y: eSnap.y };
+                }
+              }
+            }
+
             const withBindings = elements.map(el => {
               if (el.id !== dEl.id) return el;
-              const clone = { ...el };
-              if (startBinding) clone.startBinding = startBinding;
-              if (endBinding) clone.endBinding = endBinding;
+              const clone = { ...el, points: dEl.points ? dEl.points.map(p => ({ ...p })) : el.points };
+              if (finalStartBinding) clone.startBinding = finalStartBinding;
+              if (finalEndBinding) clone.endBinding = finalEndBinding;
               return clone;
             });
             onChangeElements(withBindings);
@@ -1077,8 +1218,8 @@ export function Canvas({
     if (isReadingMode) return;
     const pt = screenToCanvas(e.clientX, e.clientY);
     const hitEditable = [...elements].reverse().find(el =>
-      (el.type === 'text' || el.type === 'stickyNote' || ['cylinder', 'queue', 'cloud', 'cache'].includes(el.type)) &&
-      hitTest(el, pt.x, pt.y, 8 / zoom)
+      (el.type === 'text' || el.type === 'stickyNote' || el.type === 'arrow' || el.type === 'line' || ['cylinder', 'queue', 'cloud', 'cache'].includes(el.type)) &&
+      hitTest(el, pt.x, pt.y, 14 / zoom)
     );
 
     if (hitEditable) {
@@ -1087,6 +1228,9 @@ export function Canvas({
       } else if (['cylinder', 'queue', 'cloud', 'cache'].includes(hitEditable.type)) {
         const b = getBounds(hitEditable);
         startTextEditing(b.x + 12, b.y + b.height / 2 - 16, hitEditable);
+      } else if (hitEditable.type === 'arrow' || hitEditable.type === 'line') {
+        const mid = getArrowMidpoint(hitEditable);
+        startTextEditing(mid.x, mid.y, hitEditable);
       } else {
         startTextEditing(hitEditable.x, hitEditable.y, hitEditable);
       }
@@ -1255,14 +1399,18 @@ export function Canvas({
           className={
             textEdit.element?.type === 'stickyNote'
               ? 'sticky-note-input'
-              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type) ? 'arch-label-input' : '')
+              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
+                  ? 'arch-label-input'
+                  : (['arrow', 'line'].includes(textEdit.element?.type) ? 'arrow-label-input' : ''))
           }
           value={textEdit.text}
           autoFocus
           placeholder={
             textEdit.element?.type === 'stickyNote'
               ? "Write a note..."
-              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type) ? "Component Label..." : "Type text here...")
+              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
+                  ? "Component Label..."
+                  : (['arrow', 'line'].includes(textEdit.element?.type) ? "Label..." : "Type text here..."))
           }
           style={{
             display: 'block',
@@ -1272,15 +1420,19 @@ export function Canvas({
               ? `${Math.max(80, (textEdit.element.width - 28) * zoom)}px`
               : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
                   ? `${Math.max(80, (textEdit.element.width - 24) * zoom)}px`
-                  : (textEdit.element?.hasCustomWidth && textEdit.element.width > 20
-                      ? `${textEdit.element.width * zoom}px`
-                      : undefined)),
+                  : (['arrow', 'line'].includes(textEdit.element?.type)
+                      ? `${Math.max(70, Math.min(260, (textEdit.text.length + 3) * 11 * zoom))}px`
+                      : (textEdit.element?.hasCustomWidth && textEdit.element.width > 20
+                          ? `${textEdit.element.width * zoom}px`
+                          : undefined))),
             height: textEdit.element?.type === 'stickyNote'
               ? `${Math.max(50, (textEdit.element.height - (textEdit.element.calloutTag ? 46 : 28)) * zoom)}px`
               : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
                   ? `${Math.max(30, 32 * zoom)}px`
-                  : undefined),
-            fontSize: `${(['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round((textEdit.element.height || 80) * 0.2))) : textEdit.fontSize) * zoom}px`,
+                  : (['arrow', 'line'].includes(textEdit.element?.type)
+                      ? `${Math.max(26, 28 * zoom)}px`
+                      : undefined)),
+            fontSize: `${(['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round((textEdit.element.height || 80) * 0.2))) : (['arrow', 'line'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round(textEdit.fontSize || 16))) : textEdit.fontSize)) * zoom}px`,
             fontFamily: ['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
               ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
               : textEdit.fontFamily,
@@ -1289,7 +1441,7 @@ export function Canvas({
               : (textEdit.bold ? 'bold' : 'normal'),
             fontStyle: textEdit.italic ? 'italic' : 'normal',
             textDecoration: textEdit.underline ? 'underline' : 'none',
-            textAlign: ['cylinder', 'cloud', 'queue'].includes(textEdit.element?.type) ? 'center' : 'left',
+            textAlign: ['cylinder', 'cloud', 'queue', 'arrow', 'line'].includes(textEdit.element?.type) ? 'center' : 'left',
             color: textEdit.element?.type === 'stickyNote'
               ? (resolvePastelTint(textEdit.element.tint || textEdit.element.fillColor, isDark).textColor)
               : textEditorStroke
@@ -1320,7 +1472,7 @@ export function Canvas({
               if (k === 'u') { setTextEdit(prev => ({ ...prev, underline: !prev.underline })); e.preventDefault(); return; }
               if (e.key === 'Enter') { commitTextEditor(); e.preventDefault(); return; }
             }
-            if (e.key === 'Enter' && ['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)) {
+            if (e.key === 'Enter' && ['cylinder', 'queue', 'cloud', 'cache', 'arrow', 'line'].includes(textEdit.element?.type)) {
               commitTextEditor();
               e.preventDefault();
               return;

@@ -163,6 +163,16 @@ export function getBounds(el) {
       if (el.controlPoint.x > maxX) maxX = el.controlPoint.x;
       if (el.controlPoint.y > maxY) maxY = el.controlPoint.y;
     }
+    if ((el.type === 'line' || el.type === 'arrow') && el.text && el.text.trim() && el.points.length >= 2) {
+      const mid = getArrowMidpoint(el);
+      const fSize = el.fontSize || 16;
+      const hw = Math.max(30, (el.text.length * fSize * 0.4) + 16);
+      const hh = Math.max(16, fSize * 0.8 + 10);
+      if (mid.x - hw < minX) minX = mid.x - hw;
+      if (mid.y - hh < minY) minY = mid.y - hh;
+      if (mid.x + hw > maxX) maxX = mid.x + hw;
+      if (mid.y + hh > maxY) maxY = mid.y + hh;
+    }
     return {
       x: minX,
       y: minY,
@@ -256,6 +266,17 @@ export function hitTest(el, px, py, threshold = 10) {
     const p1 = el.points[0];
     const p2 = el.points[el.points.length - 1];
 
+    // Check hit on middle label if present
+    if (el.text && el.text.trim()) {
+      const mid = getArrowMidpoint(el);
+      const fSize = el.fontSize || 16;
+      const halfW = Math.max(30, (el.text.length * fSize * 0.4) + 16);
+      const halfH = Math.max(16, fSize * 0.8 + 10);
+      if (Math.abs(px - mid.x) <= halfW && Math.abs(py - mid.y) <= halfH) {
+        return true;
+      }
+    }
+
     if (el.controlPoint) {
       const cp = el.controlPoint;
       let prevX = p1.x, prevY = p1.y;
@@ -302,16 +323,31 @@ export function hitTest(el, px, py, threshold = 10) {
   return false;
 }
 
+export function getArrowMidpoint(el) {
+  if (!el.points || el.points.length < 2) return { x: el.x || 0, y: el.y || 0 };
+  const p1 = el.points[0];
+  const p2 = el.points[el.points.length - 1];
+  if (el.controlPoint) {
+    return {
+      x: (p1.x + 2 * el.controlPoint.x + p2.x) / 4,
+      y: (p1.y + 2 * el.controlPoint.y + p2.y) / 4
+    };
+  }
+  return {
+    x: (p1.x + p2.x) / 2,
+    y: (p1.y + p2.y) / 2
+  };
+}
+
 export function getHandles(el) {
   if (el.type === 'line' || el.type === 'arrow') {
     if (!el.points || el.points.length < 2) return [];
     const p1 = el.points[0];
     const p2 = el.points[el.points.length - 1];
-    const midX = el.controlPoint ? el.controlPoint.x : (p1.x + p2.x) / 2;
-    const midY = el.controlPoint ? el.controlPoint.y : (p1.y + p2.y) / 2;
+    const mid = getArrowMidpoint(el);
     return [
       { x: p1.x, y: p1.y, position: 'start', cursor: 'crosshair' },
-      { x: midX, y: midY, position: 'bend', cursor: 'pointer' },
+      { x: mid.x, y: mid.y, position: 'bend', cursor: 'pointer' },
       { x: p2.x, y: p2.y, position: 'end', cursor: 'crosshair' },
     ];
   }
@@ -359,8 +395,14 @@ export function move(el, dx, dy) {
 }
 
 export function resize(el, handlePos, mouseX, mouseY, ob, origFontSize, origWidth, origHeight) {
-  if (handlePos === 'bend') {
-    el.controlPoint = { x: mouseX, y: mouseY };
+  if (handlePos === 'bend' && el.points && el.points.length >= 2) {
+    const p1 = el.points[0];
+    const p2 = el.points[el.points.length - 1];
+    // Map mouse position so the curve peak passes precisely through (mouseX, mouseY)
+    el.controlPoint = {
+      x: 2 * mouseX - (p1.x + p2.x) / 2,
+      y: 2 * mouseY - (p1.y + p2.y) / 2
+    };
     return;
   }
   if (handlePos === 'start' && el.points && el.points.length > 0) {

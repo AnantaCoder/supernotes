@@ -8,15 +8,17 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function useFileManager({ onFileLoaded }) {
   const [files, setFiles] = useState([]);
+  const [folders, setFolders] = useState([]);
   const [currentFileId, setCurrentFileId] = useState(null);
   const [currentFile, setCurrentFile] = useState(null);
   const [trashFiles, setTrashFiles] = useState([]);
   const [dbStatus, setDbStatus] = useState({ status: 'connected', text: 'All changes saved' });
   const saveTimeoutRef = useRef(null);
 
-  // Load files and trash on mount
+  // Load files, folders and trash on mount
   useEffect(() => {
     loadFiles();
+    loadFolders();
     loadTrash();
   }, []);
 
@@ -54,6 +56,117 @@ export function useFileManager({ onFileLoaded }) {
     const exists = fetchedFiles.find(f => f.id === savedActiveId);
     const targetId = exists ? savedActiveId : fetchedFiles[0].id;
     await switchFile(targetId);
+  };
+
+  const loadFolders = async () => {
+    try {
+      const res = await fetch('/api/folders');
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.folders)) {
+        setFolders(data.folders);
+        return;
+      }
+    } catch (e) {}
+
+    const raw = localStorage.getItem('supernotes_folders');
+    if (raw) {
+      try { setFolders(JSON.parse(raw) || []); } catch (e) {}
+    }
+  };
+
+  const createFolder = async (name) => {
+    const trimmed = (name || 'New Folder').trim();
+    let newFolder = null;
+    try {
+      const res = await fetch('/api/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed })
+      });
+      const data = await res.json();
+      if (data && data.success && data.folder) {
+        newFolder = data.folder;
+      }
+    } catch (e) {}
+
+    if (!newFolder) {
+      newFolder = {
+        id: 'folder-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+        name: trimmed,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        fileCount: 0
+      };
+    }
+
+    setFolders(prev => {
+      const next = [...prev, newFolder];
+      localStorage.setItem('supernotes_folders', JSON.stringify(next));
+      return next;
+    });
+    return newFolder;
+  };
+
+  const renameFolder = async (folderId, newName) => {
+    const trimmed = (newName || '').trim();
+    if (!trimmed) return;
+    setFolders(prev => {
+      const next = prev.map(f => f.id === folderId ? { ...f, name: trimmed, updatedAt: Date.now() } : f);
+      localStorage.setItem('supernotes_folders', JSON.stringify(next));
+      return next;
+    });
+
+    try {
+      await fetch(`/api/folders/${encodeURIComponent(folderId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed })
+      });
+    } catch (e) {}
+  };
+
+  const deleteFolder = async (folderId) => {
+    // Check if any active files belong to this folder (rule: user cannot delete folder if it has notes in it)
+    const notesInFolder = files.filter(f => f.folderId === folderId);
+    if (notesInFolder.length > 0) {
+      window.alert(`Cannot delete folder: this folder contains ${notesInFolder.length} note(s).\nPlease move or delete the notes inside it first.`);
+      return false;
+    }
+
+    try {
+      const res = await fetch(`/api/folders/${encodeURIComponent(folderId)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data && !data.success) {
+        window.alert(data.error || 'Cannot delete folder containing notes');
+        return false;
+      }
+    } catch (e) {}
+
+    setFolders(prev => {
+      const next = prev.filter(f => f.id !== folderId);
+      localStorage.setItem('supernotes_folders', JSON.stringify(next));
+      return next;
+    });
+    return true;
+  };
+
+  const moveFileToFolder = async (fileId, targetFolderId) => {
+    const cleanFolderId = targetFolderId || null;
+    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, folderId: cleanFolderId, updatedAt: Date.now() } : f));
+    if (currentFileId === fileId) {
+      setCurrentFile(prev => prev ? { ...prev, folderId: cleanFolderId } : prev);
+    }
+
+    try {
+      await fetch(`/api/files/${encodeURIComponent(fileId)}/folder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: cleanFolderId })
+      });
+      loadFolders();
+    } catch (e) {}
   };
 
   const loadTrash = async () => {
@@ -144,10 +257,11 @@ export function useFileManager({ onFileLoaded }) {
     }, 400);
   }, [saveImmediate]);
 
-  const createFile = async (name, initialElements = []) => {
+  const createFile = async (name, initialElements = [], folderId = null) => {
     const fileName = (name || ('Diagram ' + (files.length + 1))).trim();
     const payload = {
       name: fileName,
+      folderId: folderId || null,
       elements: initialElements || [],
       scrollX: 0,
       scrollY: 0,
@@ -176,6 +290,7 @@ export function useFileManager({ onFileLoaded }) {
     }
 
     setFiles(prev => [newFile, ...prev]);
+    loadFolders();
     await switchFile(newFile.id);
     return newFile;
   };
@@ -227,6 +342,7 @@ export function useFileManager({ onFileLoaded }) {
 
     setFiles(remainingFiles);
     setTrashFiles(prev => [trashEntry, ...prev.filter(f => f.id !== fileId)]);
+    loadFolders();
 
     if (currentFileId === fileId) {
       await switchFile(remainingFiles[0].id);
@@ -246,6 +362,7 @@ export function useFileManager({ onFileLoaded }) {
     delete restoredEntry.deletedAt;
 
     setFiles(prev => [restoredEntry, ...prev]);
+    loadFolders();
     await switchFile(fileId);
   };
 
@@ -360,6 +477,7 @@ export function useFileManager({ onFileLoaded }) {
 
   return {
     files,
+    folders,
     currentFileId,
     currentFile,
     trashFiles,
@@ -374,7 +492,12 @@ export function useFileManager({ onFileLoaded }) {
     saveCurrent,
     saveImmediate,
     exportCurrentFile,
-    importFile
+    importFile,
+    loadFolders,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    moveFileToFolder
   };
 }
 

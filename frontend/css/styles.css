@@ -117,6 +117,86 @@ html.dark-mode, body.dark-mode {
 }
 
 /* --------------------------------------------------------------------------
+   Bedtime Mode Theme Tokens (Warm, Gentle, Low-Glare Eye Comfort)
+   -------------------------------------------------------------------------- */
+/* Day Mode + Bedtime: Soothing warm cream & parchment paper tone */
+html.bedtime-mode, body.bedtime-mode {
+  --app-bg: #F4EDE2;
+  --surface: #FAF6EE;
+  --canvas-bg: #FAF5EC;
+  --surface-secondary: #EBE1D0;
+  --text-primary: #342D23;
+  --text-secondary: #7A6C58;
+  --text-muted: #A3937D;
+  --border: #E3D8C4;
+  --accent: #C27D26;
+  --accent-subtle: #F6EBDA;
+  --accent-hover: #A86719;
+  --success: #36824D;
+  --success-subtle: #E8F4EC;
+  --danger: #C0433E;
+  --danger-subtle: #FBECEB;
+
+  --bg-primary: var(--surface);
+  --bg-secondary: var(--surface-secondary);
+  --bg-sidebar: var(--surface);
+  --border-color: var(--border);
+  --accent-light: var(--accent-subtle);
+  --danger-light: var(--danger-subtle);
+  --success-light: var(--success-subtle);
+
+  --shadow-xs: 0 1px 2px rgba(80, 60, 30, 0.04);
+  --shadow-sm: 0 1px 3px rgba(80, 60, 30, 0.06);
+  --shadow-md: 0 4px 12px rgba(80, 60, 30, 0.08);
+  --shadow-lg: 0 10px 28px rgba(80, 60, 30, 0.10);
+}
+
+/* Dark Mode + Bedtime: Soothing warm charcoal-amber night mode */
+html.dark-mode.bedtime-mode, body.dark-mode.bedtime-mode {
+  --app-bg: #181512;
+  --surface: #221E19;
+  --canvas-bg: #1C1814;
+  --surface-secondary: #2C2620;
+  --text-primary: #EAE0D0;
+  --text-secondary: #B5A894;
+  --text-muted: #847764;
+  --border: #3A3227;
+  --accent: #E5AC58;
+  --accent-subtle: #3A2B15;
+  --accent-hover: #F2BD72;
+  --success: #86C186;
+  --success-subtle: #243520;
+  --danger: #DF7666;
+  --danger-subtle: #3A201C;
+
+  --bg-primary: var(--surface);
+  --bg-secondary: var(--surface-secondary);
+  --bg-sidebar: var(--surface);
+  --border-color: var(--border);
+  --accent-light: var(--accent-subtle);
+  --danger-light: var(--danger-subtle);
+  --success-light: var(--success-subtle);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.65);
+}
+
+.bedtime-toggle-btn.active {
+  background-color: rgba(194, 125, 38, 0.16) !important;
+  color: #C27D26 !important;
+  border-color: rgba(194, 125, 38, 0.45) !important;
+}
+
+html.dark-mode .bedtime-toggle-btn.active,
+body.dark-mode .bedtime-toggle-btn.active {
+  background-color: rgba(229, 172, 88, 0.22) !important;
+  color: #E5AC58 !important;
+  border-color: rgba(229, 172, 88, 0.5) !important;
+}
+
+/* --------------------------------------------------------------------------
    Base Document & Viewport Setup
    -------------------------------------------------------------------------- */
 html, body {
@@ -391,21 +471,22 @@ html, body {
 .sidebar-title {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: -0.1px;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
 }
 
 .sidebar-title-icon {
   color: var(--text-secondary);
+  opacity: 0.85;
 }
 
 .sidebar-header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .sidebar-btn {
@@ -553,6 +634,226 @@ html, body {
 .file-action-btn.delete:hover {
   background-color: var(--danger-subtle);
   color: var(--danger);
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar Folders & Note Hierarchy
+   -------------------------------------------------------------------------- */
+.folder-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2px;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  user-select: none;
+}
+
+.folder-item:hover {
+  background-color: var(--surface-secondary);
+}
+
+.folder-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.folder-chevron.open {
+  transform: rotate(90deg);
+  color: var(--text-secondary);
+}
+
+.folder-icon {
+  color: #E5AC58;
+  flex-shrink: 0;
+}
+
+.folder-name {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.1px;
+}
+
+.folder-name input {
+  width: 100%;
+  height: 22px;
+  padding: 0 4px;
+  background-color: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-xs);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  outline: none;
+}
+
+.folder-count-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background-color: var(--surface-secondary);
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.folder-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.folder-item:hover .folder-actions,
+.folder-item:focus-within .folder-actions {
+  opacity: 1;
+}
+
+.folder-notes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+  border-left: 1.5px dashed var(--border);
+  margin-left: 11px;
+  margin-top: 1px;
+  margin-bottom: 4px;
+}
+
+.nested-file-item {
+  height: 28px !important;
+}
+
+.empty-folder-hint {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+
+.disabled-delete {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+.disabled-delete:hover {
+  background-color: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Inline create folder */
+.inline-create-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--accent);
+}
+
+.inline-create-folder-row svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.inline-folder-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+/* Sidebar section divider */
+.sidebar-section-divider {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+}
+
+/* Move file popover */
+.file-move-wrapper {
+  position: relative;
+}
+
+.move-folder-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.move-popup-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.move-popup-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-xs);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--transition-fast);
+}
+
+.move-popup-option:hover {
+  background-color: var(--surface-secondary);
+}
+
+.move-popup-option.selected {
+  font-weight: 600;
+  background-color: var(--accent-subtle);
+  color: var(--accent);
 }
 
 /* Sidebar Trash Section */
@@ -858,6 +1159,53 @@ html, body {
 }
 
 /* Appearance Controls: Color Swatches & Width */
+.stroke-swatches-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-color-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 1px;
+}
+
+.quick-dot-btn {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.quick-dot-btn:hover {
+  transform: scale(1.18);
+}
+
+.quick-dot-btn.black-dot {
+  background-color: #000000;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.quick-dot-btn.white-dot {
+  background-color: #FFFFFF;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.quick-dot-btn.active {
+  transform: scale(1.15);
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 .color-swatch-wrapper {
   position: relative;
   display: flex;
@@ -943,12 +1291,51 @@ html, body {
   white-space: nowrap;
 }
 
-/* Width Slider Control */
+/* Width Slider & Stepper Control */
 .width-control {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 0 4px;
+}
+
+.width-stepper-pills {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--surface-secondary);
+  border-radius: var(--radius-sm);
+  padding: 1.5px;
+  gap: 1.5px;
+  border: 1px solid var(--border);
+}
+
+.width-pill-btn {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-xs);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+}
+
+.width-pill-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.width-pill-btn.active {
+  background-color: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .width-label {
@@ -1112,6 +1499,21 @@ html, body {
   overflow: hidden !important;
   white-space: nowrap !important;
   line-height: 1.2 !important;
+}
+
+#text-input.arrow-label-input {
+  box-sizing: border-box !important;
+  transform: translate(-50%, -50%) !important;
+  background-color: var(--surface) !important;
+  border: 1.5px solid var(--accent) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-pill) !important;
+  padding: 3px 10px !important;
+  outline: none !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
 }
 
 /* Floating Contextual Inspector (Sticky Notes & Architecture Shapes) */

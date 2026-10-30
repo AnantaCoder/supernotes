@@ -39,9 +39,17 @@ function configurePragmas() {
 
 function initTables() {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS folders (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS files (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      folder_id TEXT DEFAULT NULL,
       elements TEXT NOT NULL DEFAULT '[]',
       scroll_x REAL NOT NULL DEFAULT 0,
       scroll_y REAL NOT NULL DEFAULT 0,
@@ -54,16 +62,25 @@ function initTables() {
     CREATE INDEX IF NOT EXISTS idx_files_active ON files (deleted_at, updated_at DESC);
   `);
 
-  // Ensure deleted_at column exists for existing tables
+  // Ensure deleted_at and folder_id columns exist for existing tables
   try {
     const columns = db.prepare('PRAGMA table_info(files)').all();
     const hasDeletedAt = columns.some(c => c.name === 'deleted_at');
     if (!hasDeletedAt) {
       db.exec('ALTER TABLE files ADD COLUMN deleted_at INTEGER DEFAULT NULL');
     }
+    const hasFolderId = columns.some(c => c.name === 'folder_id');
+    if (!hasFolderId) {
+      db.exec('ALTER TABLE files ADD COLUMN folder_id TEXT DEFAULT NULL');
+    }
   } catch (e) {
-    console.error('Migration error checking deleted_at column:', e);
+    console.error('Migration error checking columns:', e);
   }
+
+  // Create folder index after column check
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_files_folder ON files (folder_id)');
+  } catch (e) {}
 
   // Purge any expired trash (older than 30 days)
   purgeExpiredTrash();
@@ -178,11 +195,12 @@ function seedStarterFile() {
 function listFiles() {
   const database = getDb();
   purgeExpiredTrash();
-  const stmt = database.prepare('SELECT id, name, created_at, updated_at FROM files WHERE deleted_at IS NULL ORDER BY updated_at DESC');
+  const stmt = database.prepare('SELECT id, name, folder_id, created_at, updated_at FROM files WHERE deleted_at IS NULL ORDER BY updated_at DESC');
   const rows = stmt.all();
   return rows.map(r => ({
     id: r.id,
     name: r.name,
+    folderId: r.folder_id || null,
     createdAt: r.created_at,
     updatedAt: r.updated_at
   }));
@@ -191,11 +209,12 @@ function listFiles() {
 function listTrash() {
   const database = getDb();
   purgeExpiredTrash();
-  const stmt = database.prepare('SELECT id, name, created_at, updated_at, deleted_at FROM files WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC');
+  const stmt = database.prepare('SELECT id, name, folder_id, created_at, updated_at, deleted_at FROM files WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC');
   const rows = stmt.all();
   return rows.map(r => ({
     id: r.id,
     name: r.name,
+    folderId: r.folder_id || null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deletedAt: r.deleted_at
@@ -218,6 +237,7 @@ function getFile(id) {
   return {
     id: r.id,
     name: r.name,
+    folderId: r.folder_id || null,
     elements: elements,
     scrollX: Number(r.scroll_x) || 0,
     scrollY: Number(r.scroll_y) || 0,
@@ -232,6 +252,7 @@ function createFile(data) {
   const database = getDb();
   const id = data.id || ('file-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
   const name = (data.name || 'Untitled Diagram').trim();
+  const folderId = data.folderId !== undefined ? (data.folderId || null) : null;
   const elements = JSON.stringify(data.elements || []);
   const scrollX = Number(data.scrollX) || 0;
   const scrollY = Number(data.scrollY) || 0;
@@ -242,11 +263,11 @@ function createFile(data) {
   const deletedAt = data.deletedAt || null;
 
   const insert = database.prepare(`
-    INSERT OR REPLACE INTO files (id, name, elements, scroll_x, scroll_y, zoom, created_at, updated_at, deleted_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO files (id, name, folder_id, elements, scroll_x, scroll_y, zoom, created_at, updated_at, deleted_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  insert.run(id, name, elements, scrollX, scrollY, zoom, createdAt, updatedAt, deletedAt);
+  insert.run(id, name, folderId, elements, scrollX, scrollY, zoom, createdAt, updatedAt, deletedAt);
 
   return getFile(id);
 }
@@ -260,6 +281,7 @@ function updateFile(id, data) {
   }
 
   const name = data.name !== undefined ? data.name.trim() : existing.name;
+  const folderId = data.folderId !== undefined ? (data.folderId || null) : existing.folderId;
   const elements = data.elements !== undefined ? JSON.stringify(data.elements) : JSON.stringify(existing.elements);
   const scrollX = data.scrollX !== undefined ? Number(data.scrollX) : existing.scrollX;
   const scrollY = data.scrollY !== undefined ? Number(data.scrollY) : existing.scrollY;
@@ -269,13 +291,73 @@ function updateFile(id, data) {
 
   const update = database.prepare(`
     UPDATE files
-    SET name = ?, elements = ?, scroll_x = ?, scroll_y = ?, zoom = ?, updated_at = ?, deleted_at = ?
+    SET name = ?, folder_id = ?, elements = ?, scroll_x = ?, scroll_y = ?, zoom = ?, updated_at = ?, deleted_at = ?
     WHERE id = ?
   `);
 
-  update.run(name, elements, scrollX, scrollY, zoom, updatedAt, deletedAt, id);
+  update.run(name, folderId, elements, scrollX, scrollY, zoom, updatedAt, deletedAt, id);
 
   return getFile(id);
+}
+
+function moveFileToFolder(fileId, folderId) {
+  const database = getDb();
+  const now = Date.now();
+  const stmt = database.prepare('UPDATE files SET folder_id = ?, updated_at = ? WHERE id = ?');
+  const res = stmt.run(folderId || null, now, fileId);
+  return res.changes > 0;
+}
+
+function listFolders() {
+  const database = getDb();
+  const stmt = database.prepare(`
+    SELECT f.id, f.name, f.created_at, f.updated_at,
+           (SELECT COUNT(*) FROM files WHERE folder_id = f.id AND deleted_at IS NULL) AS file_count
+    FROM folders f
+    ORDER BY f.name ASC
+  `);
+  const rows = stmt.all();
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    fileCount: Number(r.file_count) || 0
+  }));
+}
+
+function createFolder(name) {
+  const database = getDb();
+  const id = 'folder-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  const trimmed = (name || 'New Folder').trim();
+  const now = Date.now();
+  const stmt = database.prepare('INSERT INTO folders (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)');
+  stmt.run(id, trimmed, now, now);
+  return { id, name: trimmed, createdAt: now, updatedAt: now, fileCount: 0 };
+}
+
+function renameFolder(id, name) {
+  const database = getDb();
+  const trimmed = (name || '').trim();
+  if (!trimmed) return null;
+  const now = Date.now();
+  const stmt = database.prepare('UPDATE folders SET name = ?, updated_at = ? WHERE id = ?');
+  stmt.run(trimmed, now, id);
+  return { id, name: trimmed, updatedAt: now };
+}
+
+function deleteFolder(id) {
+  const database = getDb();
+  // Check if folder contains active notes (user requirement: user cannot delete folder if he has notes in it)
+  const countStmt = database.prepare('SELECT COUNT(*) as count FROM files WHERE folder_id = ? AND deleted_at IS NULL');
+  const res = countStmt.get(id);
+  const count = res ? Number(res.count) : 0;
+  if (count > 0) {
+    return { success: false, error: 'Cannot delete folder containing notes', fileCount: count };
+  }
+  const stmt = database.prepare('DELETE FROM folders WHERE id = ?');
+  const delRes = stmt.run(id);
+  return { success: delRes.changes > 0 };
 }
 
 function moveToTrash(id) {
@@ -358,6 +440,11 @@ module.exports = {
   emptyTrash,
   purgeExpiredTrash,
   migrateFiles,
-  backupDatabase
+  backupDatabase,
+  listFolders,
+  createFolder,
+  renameFolder,
+  deleteFolder,
+  moveFileToFolder
 };
 

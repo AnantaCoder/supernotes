@@ -129,6 +129,49 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { success: true, files }, req);
       }
 
+      // ==================== FOLDERS API ====================
+      // GET /api/folders - List all folders with note counts
+      if (req.method === 'GET' && pathname === '/api/folders') {
+        const folders = db.listFolders();
+        return sendJson(res, 200, { success: true, folders }, req);
+      }
+
+      // POST /api/folders - Create new folder
+      if (req.method === 'POST' && pathname === '/api/folders') {
+        const body = await parseBody(req);
+        const folder = db.createFolder(body.name);
+        return sendJson(res, 201, { success: true, folder }, req);
+      }
+
+      // PUT /api/folders/:id - Rename folder
+      if (req.method === 'PUT' && pathname.startsWith('/api/folders/')) {
+        const folderId = pathname.replace('/api/folders/', '').trim();
+        if (!isValidFileId(folderId)) return sendJson(res, 400, { success: false, error: 'Invalid folder ID' }, req);
+        const body = await parseBody(req);
+        const updated = db.renameFolder(folderId, body.name);
+        return sendJson(res, 200, { success: !!updated, folder: updated }, req);
+      }
+
+      // DELETE /api/folders/:id - Delete folder (blocked if notes are inside!)
+      if (req.method === 'DELETE' && pathname.startsWith('/api/folders/')) {
+        const folderId = pathname.replace('/api/folders/', '').trim();
+        if (!isValidFileId(folderId)) return sendJson(res, 400, { success: false, error: 'Invalid folder ID' }, req);
+        const result = db.deleteFolder(folderId);
+        if (!result.success) {
+          return sendJson(res, 400, { success: false, error: result.error || 'Cannot delete folder', fileCount: result.fileCount }, req);
+        }
+        return sendJson(res, 200, { success: true }, req);
+      }
+
+      // PUT /api/files/:id/folder - Move file to folder
+      if (req.method === 'PUT' && pathname.endsWith('/folder') && pathname.startsWith('/api/files/')) {
+        const fileId = pathname.slice('/api/files/'.length, -'/folder'.length);
+        if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
+        const body = await parseBody(req);
+        const ok = db.moveFileToFolder(fileId, body.folderId);
+        return sendJson(res, 200, { success: ok }, req);
+      }
+
       // GET /api/backup - Download standalone SQLite database backup file
       if (req.method === 'GET' && pathname === '/api/backup') {
         const today = new Date().toISOString().slice(0, 10);

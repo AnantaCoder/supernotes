@@ -4,6 +4,8 @@ import { AppLogo } from './AppLogo.jsx';
 export function Header({
   isDark,
   onToggleTheme,
+  isBedtime,
+  onToggleBedtime,
   dbStatus,
   onToggleSidebar,
   sidebarCollapsed,
@@ -107,6 +109,24 @@ export function Header({
           )}
           <span id="theme-toggle-text" className="header-btn-label">{isDark ? 'Light' : 'Dark'}</span>
         </button>
+
+        {onToggleBedtime && (
+          <button
+            id="btn-bedtime-toggle"
+            className={`header-btn bedtime-toggle-btn ${isBedtime ? 'active' : ''}`}
+            onClick={onToggleBedtime}
+            title={isBedtime ? "Exit Bedtime Mode" : "Bedtime Mode (Low glare & gentle eye visibility)"}
+            aria-label="Toggle Bedtime Mode"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 4v16" />
+              <path d="M2 8h18a2 2 0 0 1 2 2v10" />
+              <path d="M2 17h20" />
+              <circle cx="6" cy="12" r="2" />
+            </svg>
+            <span className="header-btn-label">Bedtime</span>
+          </button>
+        )}
 
         <div className="header-separator"></div>
 

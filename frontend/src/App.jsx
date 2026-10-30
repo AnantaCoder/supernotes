@@ -30,6 +30,11 @@ export function App() {
   // Reading mode state (read-only document viewing mode)
   const [isReadingMode, setIsReadingMode] = useState(false);
 
+  // Bedtime mode state (warm, gentle low-glare visibility)
+  const [isBedtime, setIsBedtime] = useState(() => {
+    return localStorage.getItem('supernotes_bedtime') === 'true';
+  });
+
   // Canvas Viewport State
   const [elements, setElements] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -75,6 +80,17 @@ export function App() {
     document.documentElement.classList.toggle('dark-mode', isDark);
     localStorage.setItem('supernotes_theme', isDark ? 'dark' : 'light');
   }, [isDark]);
+
+  // Apply bedtime mode class to root & body
+  useEffect(() => {
+    document.body.classList.toggle('bedtime-mode', isBedtime);
+    document.documentElement.classList.toggle('bedtime-mode', isBedtime);
+    localStorage.setItem('supernotes_bedtime', isBedtime ? 'true' : 'false');
+  }, [isBedtime]);
+
+  const toggleBedtime = useCallback(() => {
+    setIsBedtime(prev => !prev);
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setIsDark(prev => {
@@ -405,6 +421,18 @@ export function App() {
       const key = e.key.toLowerCase();
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
 
+      // Up / Down arrow keys for quick zoom without modifier keys
+      if (e.key === 'ArrowUp') {
+        handleZoomIn();
+        e.preventDefault();
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        handleZoomOut();
+        e.preventDefault();
+        return;
+      }
+
       // Escape exits reading mode
       if (e.key === 'Escape' && isReadingMode) {
         setIsReadingMode(false);
@@ -554,6 +582,8 @@ export function App() {
       <Header
         isDark={isDark}
         onToggleTheme={toggleTheme}
+        isBedtime={isBedtime}
+        onToggleBedtime={toggleBedtime}
         dbStatus={fileManager.dbStatus}
         onToggleSidebar={toggleSidebar}
         sidebarCollapsed={sidebarCollapsed}
@@ -568,6 +598,7 @@ export function App() {
       <div id="main">
         <Sidebar
           files={fileManager.files}
+          folders={fileManager.folders}
           currentFileId={fileManager.currentFileId}
           trashFiles={fileManager.trashFiles}
           collapsed={sidebarCollapsed}
@@ -579,6 +610,10 @@ export function App() {
           onRestoreFromTrash={fileManager.restoreFromTrash}
           onPermanentDelete={fileManager.permanentDelete}
           onEmptyTrash={fileManager.emptyTrash}
+          onCreateFolder={fileManager.createFolder}
+          onRenameFolder={fileManager.renameFolder}
+          onDeleteFolder={fileManager.deleteFolder}
+          onMoveFileToFolder={fileManager.moveFileToFolder}
         />
 
         <div id="workspace">
@@ -637,6 +672,7 @@ export function App() {
             scrollY={scrollY}
             onScrollChange={(x, y) => { setScrollX(x); setScrollY(y); }}
             isDark={isDark}
+            isBedtime={isBedtime}
             showGrid={showGrid}
             onRecordHistory={handleRecordHistory}
             isReadingMode={isReadingMode}

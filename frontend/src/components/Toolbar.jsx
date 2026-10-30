@@ -245,19 +245,31 @@ export function Toolbar({
 
       {/* Group 2 — Appearance */}
       <div className="tool-group" id="appearance-controls">
-        {/* Stroke Color Swatch */}
-        <div className="color-swatch-wrapper" title={`Stroke Color: ${strokeColor}`}>
-          <label className="color-swatch-label" htmlFor="stroke-color">
-            <span className="swatch-preview" style={{ backgroundColor: strokeColor }}></span>
-            <span className="swatch-text">Stroke</span>
-          </label>
-          <input
-            type="color"
-            id="stroke-color"
-            className="hidden-color-input"
-            value={strokeColor}
-            onChange={(e) => onChangeStrokeColor(e.target.value)}
-          />
+        {/* Stroke Color Swatch & Quick Pure Black/White dots */}
+        <div className="stroke-swatches-container">
+          <div className="color-swatch-wrapper" title={`Stroke Color: ${strokeColor}`}>
+            <label className="color-swatch-label" htmlFor="stroke-color">
+              <span className="swatch-preview" style={{ backgroundColor: strokeColor }}></span>
+              <span className="swatch-text">Stroke</span>
+            </label>
+            <input
+              type="color"
+              id="stroke-color"
+              className="hidden-color-input"
+              value={strokeColor}
+              onChange={(e) => onChangeStrokeColor(e.target.value)}
+            />
+          </div>
+
+          <div className="quick-color-dots">
+            <button
+              type="button"
+              className={`quick-dot-btn black-dot ${strokeColor === '#000000' || strokeColor.toLowerCase() === '#000000' ? 'active' : ''}`}
+              onClick={() => onChangeStrokeColor('#000000')}
+              title="Pure Black (#000000)"
+              aria-label="Pure Black"
+            />
+          </div>
         </div>
 
         {/* Fill Color Swatch */}
@@ -292,18 +304,22 @@ export function Toolbar({
           <span className="checkbox-label">No fill</span>
         </label>
 
-        {/* Stroke Width */}
-        <div className="width-control" title={`Stroke width: ${strokeWidth}px`}>
+        {/* Stroke Width (Limited to 1, 2, 3, 4) */}
+        <div className="width-control width-limited-control" title={`Stroke width: ${strokeWidth}px`}>
           <span className="width-label">Width</span>
-          <input
-            type="range"
-            id="stroke-width"
-            min="1"
-            max="12"
-            value={strokeWidth}
-            onChange={(e) => onChangeStrokeWidth(parseInt(e.target.value, 10) || 2)}
-          />
-          <span id="stroke-width-value" className="width-badge">{strokeWidth}</span>
+          <div className="width-stepper-pills">
+            {[1, 2, 3, 4].map((w) => (
+              <button
+                key={w}
+                type="button"
+                className={`width-pill-btn ${strokeWidth === w ? 'active' : ''}`}
+                onClick={() => onChangeStrokeWidth(w)}
+                title={`Stroke Width ${w}px`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -311,20 +327,18 @@ export function Toolbar({
 
       {/* Group 3 — Writing */}
       <div className="tool-group" id="font-controls">
-        <label className="font-select-label" title="Handwriting & Typography Style">
+        <label className="font-select-label" title="Typography Style">
           <select
             id="font-family"
             className="toolbar-select font-family-select"
             value={fontFamily}
             onChange={(e) => onChangeFontFamily(e.target.value)}
           >
-            <option value="'Patrick Hand', cursive">✍️ Patrick Hand (Neat Marker)</option>
-            <option value="'Permanent Marker', cursive">🖍️ Permanent Marker (Shiny Marker)</option>
-            <option value="'Architects Daughter', cursive">📐 Architects Daughter (Clean Marker)</option>
-            <option value="'Gloria Hallelujah', cursive">✨ Gloria Hallelujah (Pretty Marker)</option>
-            <option value="'Kalam', cursive">🖋️ Kalam (Felt Marker)</option>
-            <option value="Inter, sans-serif">🔤 Clean Sans (Inter)</option>
-            <option value="'Fira Code', monospace">💻 Code / Monospace</option>
+            <option value="'Patrick Hand', cursive">Handwriting</option>
+            <option value="'Architects Daughter', cursive">Architect</option>
+            <option value="'Kalam', cursive">Casual</option>
+            <option value="Inter, sans-serif">Sans</option>
+            <option value="'Fira Code', monospace">Monospace</option>
           </select>
         </label>
 
@@ -404,44 +418,6 @@ export function Toolbar({
           </svg>
         </button>
       </div>
-
-      {/* Optional Group 5 — View Controls: Grid & Reading Mode */}
-      {(onToggleGrid || onToggleReadingMode) && (
-        <>
-          <div className="toolbar-separator"></div>
-          <div className="tool-group" id="canvas-view-controls">
-            {onToggleGrid && (
-              <button
-                id="toolbar-btn-grid"
-                className={`tool-btn ${showGrid ? 'active' : ''}`}
-                onClick={onToggleGrid}
-                title={showGrid ? "Hide Grid (G)" : "Show Grid (G)"}
-                aria-label="Toggle Grid"
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <path d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeDasharray="1.5 2.5" />
-                </svg>
-              </button>
-            )}
-
-            {onToggleReadingMode && (
-              <button
-                id="toolbar-btn-reading-mode"
-                className={`tool-btn ${isReadingMode ? 'active' : ''}`}
-                onClick={onToggleReadingMode}
-                title={isReadingMode ? "Exit Reading Mode" : "Reading Mode (Read Only)"}
-                aria-label="Toggle Reading Mode"
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </>
-      )}
     </div>
   );
 }
