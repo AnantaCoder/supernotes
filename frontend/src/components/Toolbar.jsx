@@ -227,7 +227,7 @@ export function Toolbar({
           </svg>
         </button>
 
-        <button
+        {/* <button
           className={`tool-btn ${currentTool === 'text' ? 'active' : ''}`}
           onClick={() => onSetTool('text')}
           title="Text Box (T or 8)"
@@ -238,7 +238,7 @@ export function Toolbar({
             <line x1="12" y1="4" x2="12" y2="20" />
             <line x1="9" y1="20" x2="15" y2="20" />
           </svg>
-        </button>
+        </button> */}
       </div>
 
       <div className="toolbar-separator"></div>
@@ -264,7 +264,7 @@ export function Toolbar({
           <div className="quick-color-dots">
             <button
               type="button"
-              className={`quick-dot-btn black-dot ${strokeColor === '#000000' || strokeColor.toLowerCase() === '#000000' ? 'active' : ''}`}
+              className={`quick-dot-btn  black-dot ${strokeColor === '#000000' || strokeColor.toLowerCase() === '#000000' ? 'active' : ''}`}
               onClick={() => onChangeStrokeColor('#000000')}
               title="Pure Black (#000000)"
               aria-label="Pure Black"
