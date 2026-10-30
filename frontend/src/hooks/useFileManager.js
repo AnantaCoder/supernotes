@@ -14,6 +14,27 @@ export function useFileManager({ onFileLoaded }) {
   const [trashFiles, setTrashFiles] = useState([]);
   const [dbStatus, setDbStatus] = useState({ status: 'connected', text: 'All changes saved' });
   const saveTimeoutRef = useRef(null);
+  const pendingSaveRef = useRef(null);
+
+  // Auto-flush pending saves on tab close or navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (pendingSaveRef.current) {
+        const { fileId, payload } = pendingSaveRef.current;
+        try {
+          localStorage.setItem(LEGACY_PREFIX + fileId, JSON.stringify(payload));
+        } catch (e) {}
+        try {
+          if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            navigator.sendBeacon(`/api/files/${encodeURIComponent(fileId)}`, blob);
+          }
+        } catch (e) {}
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   // Load files, folders and trash on mount
   useEffect(() => {
@@ -193,6 +214,14 @@ export function useFileManager({ onFileLoaded }) {
   };
 
   const switchFile = async (fileId) => {
+    // Flush any pending unsaved changes from previous file immediately before switching
+    if (pendingSaveRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      const { fileId: pendingId, payload: pendingPayload } = pendingSaveRef.current;
+      pendingSaveRef.current = null;
+      await saveImmediate(pendingId, pendingPayload);
+    }
+
     let fileData = null;
     try {
       const res = await fetch(`/api/files/${encodeURIComponent(fileId)}`);
@@ -251,9 +280,17 @@ export function useFileManager({ onFileLoaded }) {
   const saveCurrent = useCallback((fileId, payload) => {
     if (!fileId) return;
     setDbStatus({ status: 'saving', text: 'Saving...' });
+
+    // Immediately persist to localStorage synchronously so no changes are lost on quick reload/re-render
+    try {
+      localStorage.setItem(LEGACY_PREFIX + fileId, JSON.stringify(payload));
+    } catch (e) {}
+
     clearTimeout(saveTimeoutRef.current);
+    pendingSaveRef.current = { fileId, payload };
     saveTimeoutRef.current = setTimeout(() => {
       saveImmediate(fileId, payload);
+      pendingSaveRef.current = null;
     }, 400);
   }, [saveImmediate]);
 

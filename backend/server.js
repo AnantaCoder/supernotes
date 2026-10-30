@@ -265,8 +265,8 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 201, { success: true, file }, req);
       }
 
-      // PUT /api/files/:id - Update a file
-      if (req.method === 'PUT' && pathname.startsWith('/api/files/')) {
+      // PUT or POST /api/files/:id - Update a file (supports PUT and sendBeacon POST)
+      if ((req.method === 'PUT' || req.method === 'POST') && pathname.startsWith('/api/files/') && !pathname.endsWith('/trash') && !pathname.endsWith('/restore') && !pathname.endsWith('/permanent') && !pathname.endsWith('/folder') && !pathname.endsWith('/backups') && pathname !== '/api/files') {
         const fileId = pathname.replace('/api/files/', '').trim();
         if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const body = await parseBody(req);

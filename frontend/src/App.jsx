@@ -55,6 +55,14 @@ export function App() {
   const [scrollX, setScrollX] = useState(0);
   const [scrollY, setScrollY] = useState(0);
 
+  // References to hold immediate synchronous values for saving & actions
+  const elementsRef = useRef(elements);
+  elementsRef.current = elements;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const scrollRef = useRef({ x: scrollX, y: scrollY });
+  scrollRef.current = { x: scrollX, y: scrollY };
+
   const clipboardRef = useRef([]);
   const mousePosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
 
@@ -65,10 +73,17 @@ export function App() {
   const fileManager = useFileManager({
     onFileLoaded: (fileData) => {
       const els = fileData.elements || [];
+      elementsRef.current = els;
+      const loadedZoom = fileData.zoom !== undefined ? fileData.zoom : 1;
+      const loadedScrollX = fileData.scrollX !== undefined ? fileData.scrollX : 0;
+      const loadedScrollY = fileData.scrollY !== undefined ? fileData.scrollY : 0;
+      zoomRef.current = loadedZoom;
+      scrollRef.current = { x: loadedScrollX, y: loadedScrollY };
+
       setElements(els);
-      setScrollX(fileData.scrollX !== undefined ? fileData.scrollX : 0);
-      setScrollY(fileData.scrollY !== undefined ? fileData.scrollY : 0);
-      setZoom(fileData.zoom !== undefined ? fileData.zoom : 1);
+      setScrollX(loadedScrollX);
+      setScrollY(loadedScrollY);
+      setZoom(loadedZoom);
       setSelectedIds(new Set());
       initHistory(els);
     }
@@ -122,19 +137,40 @@ export function App() {
     });
   }, []);
 
-  // Zoom Handlers
+  // Zoom & Scroll Handlers
   const handleZoomIn = useCallback(() => {
-    setZoom(prev => Math.min(5, Math.round((prev * 1.2) * 100) / 100));
+    setZoom(prev => {
+      const next = Math.min(5, Math.round((prev * 1.2) * 100) / 100);
+      zoomRef.current = next;
+      return next;
+    });
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setZoom(prev => Math.max(0.1, Math.round((prev / 1.2) * 100) / 100));
+    setZoom(prev => {
+      const next = Math.max(0.1, Math.round((prev / 1.2) * 100) / 100);
+      zoomRef.current = next;
+      return next;
+    });
   }, []);
 
   const handleResetZoom = useCallback(() => {
+    zoomRef.current = 1;
+    scrollRef.current = { x: 0, y: 0 };
     setZoom(1);
     setScrollX(0);
     setScrollY(0);
+  }, []);
+
+  const handleZoomChange = useCallback((newZoom) => {
+    zoomRef.current = newZoom;
+    setZoom(newZoom);
+  }, []);
+
+  const handleScrollChange = useCallback((x, y) => {
+    scrollRef.current = { x, y };
+    setScrollX(x);
+    setScrollY(y);
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -181,18 +217,12 @@ export function App() {
   }, []);
 
   // Autosave to SQLite whenever elements, scroll, or zoom change
-  const elementsRef = useRef(elements);
-  elementsRef.current = elements;
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-  const scrollRef = useRef({ x: scrollX, y: scrollY });
-  scrollRef.current = { x: scrollX, y: scrollY };
-
-  const triggerAutoSave = useCallback(() => {
+  const triggerAutoSave = useCallback((overrideElements) => {
     if (!fileManager.currentFileId) return;
+    const toSave = overrideElements !== undefined ? overrideElements : elementsRef.current;
     fileManager.saveCurrent(fileManager.currentFileId, {
       name: fileManager.currentFile ? fileManager.currentFile.name : 'Untitled',
-      elements: elementsRef.current,
+      elements: toSave,
       scrollX: scrollRef.current.x,
       scrollY: scrollRef.current.y,
       zoom: zoomRef.current
@@ -200,13 +230,16 @@ export function App() {
   }, [fileManager]);
 
   const handleRecordHistory = useCallback((nextElements) => {
-    record(nextElements);
-    triggerAutoSave();
+    const list = nextElements !== undefined ? nextElements : elementsRef.current;
+    elementsRef.current = list;
+    record(list);
+    triggerAutoSave(list);
   }, [record, triggerAutoSave]);
 
   const handleElementsChange = useCallback((nextElements) => {
+    elementsRef.current = nextElements;
     setElements(nextElements);
-    triggerAutoSave();
+    triggerAutoSave(nextElements);
   }, [triggerAutoSave]);
 
   // Handle undo/redo
@@ -214,9 +247,10 @@ export function App() {
     if (!canUndo) return;
     undo((revertedElements) => {
       if (!revertedElements) return;
+      elementsRef.current = revertedElements;
       setElements(revertedElements);
       setSelectedIds(new Set());
-      triggerAutoSave();
+      triggerAutoSave(revertedElements);
     });
   }, [canUndo, undo, triggerAutoSave]);
 
@@ -224,9 +258,10 @@ export function App() {
     if (!canRedo) return;
     redo((revertedElements) => {
       if (!revertedElements) return;
+      elementsRef.current = revertedElements;
       setElements(revertedElements);
       setSelectedIds(new Set());
-      triggerAutoSave();
+      triggerAutoSave(revertedElements);
     });
   }, [canRedo, redo, triggerAutoSave]);
 
@@ -343,7 +378,25 @@ export function App() {
   // Delete selected elements
   const deleteSelected = useCallback(() => {
     if (selectedIds.size === 0) return;
-    const nextElements = elements.filter(el => !selectedIds.has(el.id));
+    const currentList = elementsRef.current || elements;
+    const nextElements = currentList
+      .filter(el => !selectedIds.has(el.id))
+      .map(el => {
+        let startBinding = el.startBinding;
+        let endBinding = el.endBinding;
+        let changed = false;
+        if (startBinding && selectedIds.has(startBinding.elementId)) {
+          startBinding = null;
+          changed = true;
+        }
+        if (endBinding && selectedIds.has(endBinding.elementId)) {
+          endBinding = null;
+          changed = true;
+        }
+        return changed ? { ...el, startBinding, endBinding } : el;
+      });
+
+    elementsRef.current = nextElements;
     setElements(nextElements);
     setSelectedIds(new Set());
     handleRecordHistory(nextElements);
@@ -351,7 +404,8 @@ export function App() {
 
   // Copy selected elements
   const copySelected = useCallback(() => {
-    const selected = elements.filter(el => selectedIds.has(el.id));
+    const currentList = elementsRef.current || elements;
+    const selected = currentList.filter(el => selectedIds.has(el.id));
     if (selected.length === 0) return;
     clipboardRef.current = deepClone(selected);
     try {
@@ -408,7 +462,9 @@ export function App() {
       return clone;
     });
 
-    const nextElements = [...elements, ...cloned];
+    const currentList = elementsRef.current || elements;
+    const nextElements = [...currentList, ...cloned];
+    elementsRef.current = nextElements;
     setElements(nextElements);
     setSelectedIds(newIds);
     handleRecordHistory(nextElements);
@@ -671,10 +727,10 @@ export function App() {
             isItalic={isItalic}
             isUnderline={isUnderline}
             zoom={zoom}
-            onZoomChange={setZoom}
+            onZoomChange={handleZoomChange}
             scrollX={scrollX}
             scrollY={scrollY}
-            onScrollChange={(x, y) => { setScrollX(x); setScrollY(y); }}
+            onScrollChange={handleScrollChange}
             isDark={isDark}
             isBedtime={isBedtime}
             showGrid={showGrid}
