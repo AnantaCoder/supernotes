@@ -483,7 +483,12 @@ export function Canvas({
       } else if (['cylinder', 'queue', 'cloud', 'cache'].includes(existingEl.type)) {
         const b = getBounds(existingEl);
         posX = b.x + 12;
-        posY = b.y + b.height / 2 - 16;
+        if (existingEl.type === 'cache') {
+          const headerH = Math.min(26, Math.max(20, Math.round(b.height * 0.28)));
+          posY = b.y + headerH + (b.height - headerH) / 2 - 14;
+        } else {
+          posY = b.y + b.height / 2 - 16;
+        }
       } else if (existingEl.type === 'arrow' || existingEl.type === 'line') {
         const mid = getArrowMidpoint(existingEl);
         posX = mid.x;
@@ -1441,7 +1446,7 @@ export function Canvas({
               : (textEdit.bold ? 'bold' : 'normal'),
             fontStyle: textEdit.italic ? 'italic' : 'normal',
             textDecoration: textEdit.underline ? 'underline' : 'none',
-            textAlign: ['cylinder', 'cloud', 'queue', 'arrow', 'line'].includes(textEdit.element?.type) ? 'center' : 'left',
+            textAlign: ['cylinder', 'cloud', 'queue', 'cache', 'arrow', 'line'].includes(textEdit.element?.type) ? 'center' : 'left',
             color: textEdit.element?.type === 'stickyNote'
               ? (resolvePastelTint(textEdit.element.tint || textEdit.element.fillColor, isDark).textColor)
               : textEditorStroke

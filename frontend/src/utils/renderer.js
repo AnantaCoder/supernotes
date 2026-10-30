@@ -752,33 +752,22 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.restore();
     }
   } else if (el.type === 'cache') {
-    // In-Memory Cache (Redis / Memcached)
+    // In-Memory Cache (Redis) - Clean, Modern Architectural Card
     const b = getBounds(el);
-    const bw = Math.max(40, b.width);
-    const bh = Math.max(30, b.height);
-    const r = 8;
-    const headerH = Math.min(26, Math.max(18, bh * 0.32));
+    const bw = Math.max(50, b.width);
+    const bh = Math.max(36, b.height);
+    const r = Math.min(10, Math.max(6, Math.min(bw, bh) * 0.12));
+    const headerH = Math.min(26, Math.max(20, Math.round(bh * 0.28)));
 
     if (rc) {
       const svgPath = getRoundRectPath(b.x, b.y, bw, bh, r);
       rc.path(svgPath, opts);
-      // Header divider line separating lightning symbol & title from memory bank
-      rc.line(b.x, b.y + headerH, b.x + bw, b.y + headerH, { ...opts, strokeWidth: Math.max(1, (el.strokeWidth || 2) * 0.8) });
 
-      // Memory slot tiers (2 horizontal memory bars)
-      const slotH = (bh - headerH - 14) / 2;
-      if (slotH > 5) {
-        const s1Y = b.y + headerH + 5;
-        const s2Y = s1Y + slotH + 4;
-        rc.rectangle(b.x + 8, s1Y, bw - 16, slotH, { ...opts, strokeWidth: 1 });
-        rc.rectangle(b.x + 8, s2Y, bw - 16, slotH, { ...opts, strokeWidth: 1 });
-        // Memory cell dividers
-        const cellW = (bw - 16) / 4;
-        for (let c = 1; c < 4; c++) {
-          rc.line(b.x + 8 + c * cellW, s1Y, b.x + 8 + c * cellW, s1Y + slotH, { ...opts, strokeWidth: 1 });
-          rc.line(b.x + 8 + c * cellW, s2Y, b.x + 8 + c * cellW, s2Y + slotH, { ...opts, strokeWidth: 1 });
-        }
-      }
+      // Clean, single divider line separating the header from the cache body
+      rc.line(b.x, b.y + headerH, b.x + bw, b.y + headerH, {
+        ...opts,
+        strokeWidth: Math.max(1, (el.strokeWidth || 2) * 0.75)
+      });
     } else {
       ctx.beginPath();
       if (ctx.roundRect) {
@@ -794,31 +783,35 @@ export function renderElement(ctx, rc, el, isDark) {
       ctx.lineWidth = el.strokeWidth || 2;
       ctx.stroke();
 
-      // Divider line
+      // Clean divider line
       ctx.beginPath();
       ctx.moveTo(b.x, b.y + headerH);
       ctx.lineTo(b.x + bw, b.y + headerH);
       ctx.stroke();
-
-      // Memory slots
-      const slotH = (bh - headerH - 14) / 2;
-      if (slotH > 5) {
-        const s1Y = b.y + headerH + 5;
-        const s2Y = s1Y + slotH + 4;
-        ctx.strokeRect(b.x + 8, s1Y, bw - 16, slotH);
-        ctx.strokeRect(b.x + 8, s2Y, bw - 16, slotH);
-      }
     }
 
-    // Top Header: Flash icon + Label (only when text is set)
+    // Top Header: Sleek Flash Icon + "REDIS" Tag
+    ctx.save();
+    const tagSize = Math.max(9, Math.min(11, Math.round(headerH * 0.48)));
+    ctx.font = "600 " + tagSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.fillStyle = strokeColor;
+    ctx.globalAlpha = 0.75;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText("⚡ REDIS", b.x + 10, b.y + headerH / 2);
+    ctx.restore();
+
+    // Body Label: Prominently and cleanly centered in the body area
     if (el.text && el.text.trim()) {
       ctx.save();
-      const fSize = Math.max(11, Math.min(15, Math.round(headerH * 0.62)));
+      const bodyH = bh - headerH;
+      const fSize = Math.max(12, Math.min(18, Math.round(bodyH * 0.28)));
       ctx.font = "bold " + fSize + "px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       ctx.fillStyle = strokeColor;
-      ctx.textAlign = 'left';
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText("⚡ " + el.text.trim(), b.x + 10, b.y + headerH / 2);
+      const labelY = b.y + headerH + bodyH / 2;
+      ctx.fillText(el.text.trim(), b.x + bw / 2, labelY);
       ctx.restore();
     }
   } else if (el.type === 'text') {
@@ -974,7 +967,7 @@ export function drawGrid(ctx, viewWidth, viewHeight, zoom, scrollX, scrollY, isD
 
   // Tiny, low-contrast dots that do not interfere with handwriting
   ctx.fillStyle = isBedtime
-    ? 'rgba(230, 220, 184, 0.14)'
+    ? (isDark ? 'rgba(230, 220, 184, 0.14)' : 'rgba(120, 100, 70, 0.15)')
     : (isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.10)');
   for (let x = startX; x < endX; x += gridSize) {
     for (let y = startY; y < endY; y += gridSize) {

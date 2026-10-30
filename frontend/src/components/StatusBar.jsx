@@ -111,14 +111,26 @@ export function StatusBar({
         </span>
       </div>
 
-      {/* Center: Centered Zoom Feature */}
-      <div className="statusbar-center">
+      {/* Right: Auto-Save Status, Zoom Controls, Live Time Clock & Fullscreen Toggle */}
+      <div className="statusbar-right">
+        <span
+          id="status-save"
+          className={`status-save ${isSaving ? 'saving' : ''} ${isError ? 'error' : ''}`}
+          title={isSaving ? 'Saving changes...' : isError ? 'Offline (saved to local backup)' : 'All changes saved'}
+        >
+          <span className="status-dot"></span>
+          <span className="status-text">{saveLabel}</span>
+        </span>
+
+        <span className="status-separator"></span>
+
+        {/* Zoom Controls between Saved changes and Time */}
         <div id="status-zoom" className="status-zoom-pill">
           {onZoomOut && (
             <button
               className="status-zoom-btn"
               onClick={onZoomOut}
-              title="Zoom out (Ctrl -)"
+              title="Zoom out (Ctrl - / ArrowDown)"
               aria-label="Zoom out"
             >
               −
@@ -136,25 +148,13 @@ export function StatusBar({
             <button
               className="status-zoom-btn"
               onClick={onZoomIn}
-              title="Zoom in (Ctrl +)"
+              title="Zoom in (Ctrl + / ArrowUp)"
               aria-label="Zoom in"
             >
               +
             </button>
           )}
         </div>
-      </div>
-
-      {/* Right: Auto-Save Status, Live Time Clock & Fullscreen Toggle */}
-      <div className="statusbar-right">
-        <span
-          id="status-save"
-          className={`status-save ${isSaving ? 'saving' : ''} ${isError ? 'error' : ''}`}
-          title={isSaving ? 'Saving changes...' : isError ? 'Offline (saved to local backup)' : 'All changes saved'}
-        >
-          <span className="status-dot"></span>
-          <span className="status-text">{saveLabel}</span>
-        </span>
 
         <span className="status-separator"></span>
 
