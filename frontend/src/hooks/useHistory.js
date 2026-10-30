@@ -4,10 +4,7 @@ import { deepClone } from '../utils/math.js';
 export function useHistory(initialElements = []) {
   const [history, setHistory] = useState(() => {
     const base = initialElements ? deepClone(initialElements) : [];
-    if (base.length > 0) {
-      return { states: [[], base], currentIndex: 1 };
-    }
-    return { states: [[]], currentIndex: 0 };
+    return { states: [base], currentIndex: 0 };
   });
 
   const historyRef = useRef(history);
@@ -15,10 +12,7 @@ export function useHistory(initialElements = []) {
 
   const initHistory = useCallback((elements = []) => {
     const base = elements ? deepClone(elements) : [];
-    const newHist = base.length > 0 
-      ? { states: [[], base], currentIndex: 1 }
-      : { states: [[]], currentIndex: 0 };
-    setHistory(newHist);
+    setHistory({ states: [base], currentIndex: 0 });
   }, []);
 
   const record = useCallback((elements) => {

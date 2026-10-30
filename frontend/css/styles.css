@@ -46,7 +46,7 @@
   --header-height: 40px;
   --toolbar-height: 36px;
   --statusbar-height: 24px;
-  --sidebar-width: 230px;
+  --sidebar-width: 250px;
 
   /* Corner Radii — Apple Standard (6px–10px) */
   --radius-xs: 4px;
@@ -648,17 +648,20 @@ html, body {
 .folder-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 6px;
+  gap: 8px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 8px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-primary);
   transition: background-color var(--transition-fast), color var(--transition-fast);
   user-select: none;
+  width: 100%;
 }
 
-.folder-item:hover {
+.folder-item:hover,
+.folder-item.context-active {
   background-color: var(--surface-secondary);
 }
 
@@ -679,49 +682,45 @@ html, body {
 }
 
 .folder-name {
-  flex: 1;
-  font-size: 12.5px;
-  font-weight: 500;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: -0.1px;
+  letter-spacing: -0.15px;
 }
 
 .folder-name input {
   width: 100%;
-  height: 22px;
-  padding: 0 4px;
+  height: 24px;
+  padding: 0 6px;
   background-color: var(--surface);
   border: 1px solid var(--accent);
   border-radius: var(--radius-xs);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   outline: none;
 }
 
 .folder-count-badge {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--text-muted);
   background-color: var(--surface-secondary);
   border-radius: var(--radius-pill);
-  padding: 1px 6px;
+  padding: 1px 7px;
   flex-shrink: 0;
 }
 
-.folder-actions {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.folder-item:hover .folder-actions,
-.folder-item:focus-within .folder-actions {
-  opacity: 1;
+.folder-item:hover .folder-count-badge,
+.folder-item.context-active .folder-count-badge {
+  background-color: var(--border-light);
+  color: var(--text-secondary);
 }
 
 .folder-notes-container {
@@ -782,6 +781,201 @@ html, body {
   font-size: 12px;
   color: var(--text-primary);
   font-family: var(--font-ui);
+}
+
+/* --------------------------------------------------------------------------
+   Folder Right-Click Context Window / Modal
+   -------------------------------------------------------------------------- */
+.folder-context-window {
+  position: fixed;
+  z-index: 1200;
+  width: 236px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg), 0 4px 14px rgba(0, 0, 0, 0.12);
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: folderContextFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+@keyframes folderContextFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.folder-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+}
+
+.folder-context-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.folder-context-heading-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 170px;
+}
+
+.folder-context-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: var(--radius-xs);
+  transition: all var(--transition-fast);
+}
+
+.folder-context-close-btn:hover {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.folder-context-rename-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.folder-context-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: -0.1px;
+}
+
+.folder-context-rename-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.folder-context-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-family: var(--font-ui);
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.folder-context-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.folder-context-save-btn {
+  height: 28px;
+  padding: 0 10px;
+  background-color: var(--accent);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-xs);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.folder-context-save-btn:hover {
+  opacity: 0.9;
+}
+
+.folder-context-divider {
+  height: 1px;
+  background-color: var(--border);
+  margin: 1px 0;
+}
+
+.folder-context-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-context-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.folder-context-action-btn:hover {
+  background-color: var(--surface-secondary);
+}
+
+.folder-context-action-btn svg {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.folder-context-action-btn:hover svg {
+  color: var(--text-primary);
+}
+
+.folder-context-action-btn.delete-btn {
+  color: var(--danger);
+}
+
+.folder-context-action-btn.delete-btn svg {
+  color: var(--danger);
+}
+
+.folder-context-action-btn.delete-btn:hover {
+  background-color: var(--danger-subtle);
+  color: var(--danger);
+}
+
+.folder-context-action-btn.delete-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.folder-context-action-btn.delete-btn.disabled:hover {
+  background-color: transparent;
+  color: var(--danger);
 }
 
 /* Sidebar section divider */

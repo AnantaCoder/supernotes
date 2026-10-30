@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { TrashPanel } from './TrashPanel.jsx';
 
 export function Sidebar({
@@ -31,6 +31,52 @@ export function Sidebar({
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [editFolderName, setEditFolderName] = useState('');
   const [movingFileId, setMovingFileId] = useState(null);
+
+  // Right-click context menu / window state
+  const [folderContextMenu, setFolderContextMenu] = useState(null);
+  const contextMenuRef = useRef(null);
+
+  // Close context menu on click outside or Escape
+  useEffect(() => {
+    if (!folderContextMenu) return;
+
+    const handleClickOutside = (e) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
+        setFolderContextMenu(null);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setFolderContextMenu(null);
+      }
+    };
+
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [folderContextMenu]);
+
+  // Open right-click context window for folder
+  const handleFolderContextMenu = (folder, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const menuWidth = 240;
+    const menuHeight = 190;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth - 12);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight - 12);
+
+    setFolderContextMenu({
+      folder,
+      x: Math.max(10, x),
+      y: Math.max(10, y),
+      editName: folder.name || 'Untitled Folder'
+    });
+  };
 
   // Toggle expand/collapse for folders
   const toggleFolderExpand = (folderId, e) => {
@@ -311,10 +357,12 @@ export function Sidebar({
           return (
             <div key={folder.id} className="folder-group" role="group">
               <div
-                className="folder-item"
+                className={`folder-item ${folderContextMenu?.folder?.id === folder.id ? 'context-active' : ''}`}
                 onClick={(e) => toggleFolderExpand(folder.id, e)}
+                onContextMenu={(e) => handleFolderContextMenu(folder, e)}
                 role="button"
                 tabIndex={0}
+                title={folder.name}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') toggleFolderExpand(folder.id, e);
                 }}
@@ -333,7 +381,7 @@ export function Sidebar({
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
 
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="folder-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="folder-icon">
                   <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                 </svg>
 
@@ -360,49 +408,6 @@ export function Sidebar({
                 <span className="folder-count-badge" title={`${count} note(s)`}>
                   {count}
                 </span>
-
-                <div className="folder-actions" onClick={(e) => e.stopPropagation()}>
-                  {/* Create note inside this folder */}
-                  <button
-                    className="file-action-btn"
-                    onClick={() => {
-                      setExpandedFolderIds(prev => new Set([...prev, folder.id]));
-                      onCreateFile(null, null, folder.id);
-                    }}
-                    title={`New note in ${folder.name}`}
-                    aria-label="New Note in Folder"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </button>
-
-                  {/* Rename folder */}
-                  <button
-                    className="file-action-btn"
-                    onClick={(e) => handleStartRenameFolder(folder, e)}
-                    title="Rename folder"
-                    aria-label="Rename Folder"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                    </svg>
-                  </button>
-
-                  {/* Delete folder (guarded against notes in it!) */}
-                  <button
-                    className={`file-action-btn delete ${count > 0 ? 'disabled-delete' : ''}`}
-                    onClick={(e) => handleDeleteFolder(folder, e)}
-                    title={count > 0 ? `Cannot delete folder: contains ${count} note(s)` : "Delete folder"}
-                    aria-label="Delete Folder"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
-                </div>
               </div>
 
               {/* Nested Notes inside expanded folder */}
@@ -474,6 +479,125 @@ export function Sidebar({
           onEmptyTrash={onEmptyTrash}
         />
       </div>
+
+      {/* Folder Right-Click Small Window / Context Menu */}
+      {folderContextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="folder-context-window"
+          style={{
+            top: `${folderContextMenu.y}px`,
+            left: `${folderContextMenu.x}px`
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="folder-context-header">
+            <div className="folder-context-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E5AC58" strokeWidth="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="folder-context-heading-text">{folderContextMenu.folder.name}</span>
+            </div>
+            <button
+              type="button"
+              className="folder-context-close-btn"
+              onClick={() => setFolderContextMenu(null)}
+              title="Close"
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="folder-context-rename-section">
+            <label className="folder-context-label">Rename Folder</label>
+            <div className="folder-context-rename-row">
+              <input
+                type="text"
+                className="folder-context-input"
+                value={folderContextMenu.editName}
+                autoFocus
+                onChange={(e) => setFolderContextMenu(prev => ({ ...prev, editName: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const trimmed = folderContextMenu.editName.trim();
+                    if (trimmed && onRenameFolder) {
+                      onRenameFolder(folderContextMenu.folder.id, trimmed);
+                    }
+                    setFolderContextMenu(null);
+                  } else if (e.key === 'Escape') {
+                    setFolderContextMenu(null);
+                  }
+                }}
+                placeholder="Folder name..."
+              />
+              <button
+                type="button"
+                className="folder-context-save-btn"
+                onClick={() => {
+                  const trimmed = folderContextMenu.editName.trim();
+                  if (trimmed && onRenameFolder) {
+                    onRenameFolder(folderContextMenu.folder.id, trimmed);
+                  }
+                  setFolderContextMenu(null);
+                }}
+              >
+                Rename
+              </button>
+            </div>
+          </div>
+
+          <div className="folder-context-divider" />
+
+          <div className="folder-context-actions">
+            <button
+              type="button"
+              className="folder-context-action-btn"
+              onClick={() => {
+                setExpandedFolderIds(prev => new Set([...prev, folderContextMenu.folder.id]));
+                onCreateFile(null, null, folderContextMenu.folder.id);
+                setFolderContextMenu(null);
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>New note in this folder</span>
+            </button>
+
+            {(() => {
+              const folderNotes = files.filter(f => f.folderId === folderContextMenu.folder.id);
+              const hasNotes = folderNotes.length > 0;
+              return (
+                <button
+                  type="button"
+                  className={`folder-context-action-btn delete-btn ${hasNotes ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (hasNotes) {
+                      alert(`Cannot delete "${folderContextMenu.folder.name}": this folder contains ${folderNotes.length} note(s).\nPlease move or delete the notes inside it first.`);
+                      return;
+                    }
+                    const confirmed = window.confirm(`Delete empty folder "${folderContextMenu.folder.name}"?`);
+                    if (confirmed && onDeleteFolder) {
+                      onDeleteFolder(folderContextMenu.folder.id);
+                    }
+                    setFolderContextMenu(null);
+                  }}
+                  title={hasNotes ? `Cannot delete: contains ${folderNotes.length} note(s)` : 'Delete folder'}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>{hasNotes ? `Delete (${folderNotes.length} notes inside)` : 'Delete folder'}</span>
+                </button>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

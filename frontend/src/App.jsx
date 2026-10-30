@@ -211,20 +211,24 @@ export function App() {
 
   // Handle undo/redo
   const handleUndo = useCallback(() => {
+    if (!canUndo) return;
     undo((revertedElements) => {
+      if (!revertedElements) return;
       setElements(revertedElements);
       setSelectedIds(new Set());
       triggerAutoSave();
     });
-  }, [undo, triggerAutoSave]);
+  }, [canUndo, undo, triggerAutoSave]);
 
   const handleRedo = useCallback(() => {
+    if (!canRedo) return;
     redo((revertedElements) => {
+      if (!revertedElements) return;
       setElements(revertedElements);
       setSelectedIds(new Set());
       triggerAutoSave();
     });
-  }, [redo, triggerAutoSave]);
+  }, [canRedo, redo, triggerAutoSave]);
 
   // Property Change Handlers (applies immediately to selection if active)
   const handleChangeStrokeColor = (newColor) => {
