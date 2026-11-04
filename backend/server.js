@@ -33,10 +33,10 @@ function isAllowedOrigin(origin) {
     }
     // Allow Antigravity and cloud preview tunnels
     if (
-      u.hostname.endsWith('.antigravity.dev') ||
-      u.hostname.endsWith('.google.com') ||
+      u.hostname === 'antigravity.dev' || u.hostname.endsWith('.antigravity.dev') ||
+      u.hostname === 'google.com' || u.hostname.endsWith('.google.com') ||
       u.hostname.endsWith('.internal') ||
-      u.hostname.endsWith('.app.github.dev')
+      u.hostname === 'app.github.dev' || u.hostname.endsWith('.app.github.dev')
     ) {
       return true;
     }
@@ -53,8 +53,8 @@ function getCorsHeaders(req) {
     'X-Frame-Options': 'SAMEORIGIN',
     'Referrer-Policy': 'strict-origin-when-cross-origin'
   };
-  if (isAllowedOrigin(origin)) {
-    headers['Access-Control-Allow-Origin'] = origin || '*';
+  if (origin && isAllowedOrigin(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
   }
   return headers;
 }
@@ -114,7 +114,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Null byte injection protection
-  if (pathname.includes('\0')) {
+  if (pathname.includes('\0') || req.url.includes('%00')) {
     res.writeHead(400, { 'Content-Type': 'text/plain' });
     res.end('Bad Request');
     return;
@@ -139,7 +139,9 @@ const server = http.createServer(async (req, res) => {
       // POST /api/folders - Create new folder
       if (req.method === 'POST' && pathname === '/api/folders') {
         const body = await parseBody(req);
-        const folder = db.createFolder(body.name);
+        const folderName = typeof body.name === 'string' ? body.name.trim().slice(0, 100) : '';
+        if (!folderName) return sendJson(res, 400, { success: false, error: 'Folder name cannot be empty' }, req);
+        const folder = db.createFolder(folderName);
         return sendJson(res, 201, { success: true, folder }, req);
       }
 
@@ -148,7 +150,9 @@ const server = http.createServer(async (req, res) => {
         const folderId = pathname.replace('/api/folders/', '').trim();
         if (!isValidFileId(folderId)) return sendJson(res, 400, { success: false, error: 'Invalid folder ID' }, req);
         const body = await parseBody(req);
-        const updated = db.renameFolder(folderId, body.name);
+        const folderName = typeof body.name === 'string' ? body.name.trim().slice(0, 100) : '';
+        if (!folderName) return sendJson(res, 400, { success: false, error: 'Folder name cannot be empty' }, req);
+        const updated = db.renameFolder(folderId, folderName);
         return sendJson(res, 200, { success: !!updated, folder: updated }, req);
       }
 
@@ -168,6 +172,9 @@ const server = http.createServer(async (req, res) => {
         const fileId = pathname.slice('/api/files/'.length, -'/folder'.length);
         if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
         const body = await parseBody(req);
+        if (body.folderId && !isValidFileId(body.folderId)) {
+          return sendJson(res, 400, { success: false, error: 'Invalid folder ID' }, req);
+        }
         const ok = db.moveFileToFolder(fileId, body.folderId);
         return sendJson(res, 200, { success: ok }, req);
       }
@@ -233,6 +240,7 @@ const server = http.createServer(async (req, res) => {
         const fileId = parts[3];
         const backupId = parts[5];
         if (!isValidFileId(fileId)) return sendJson(res, 400, { success: false, error: 'Invalid file ID' }, req);
+        if (!isValidFileId(backupId)) return sendJson(res, 400, { success: false, error: 'Invalid backup ID' }, req);
         const restored = db.restoreBackup(fileId, backupId);
         if (!restored) return sendJson(res, 404, { success: false, error: 'Backup snapshot not found' }, req);
         return sendJson(res, 200, { success: true, file: restored }, req);

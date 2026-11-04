@@ -1,5 +1,32 @@
 import rough from 'roughjs';
 import { getBounds, getHandles, getWrappedTextLines, getArrowMidpoint } from './elements.js';
+import { tokenizeCode, getLanguageName, CODE_THEME } from './syntax.js';
+
+// ─── Character-width cache for monospace code rendering ─────────────────
+// For monospace fonts the width of every character is identical, so we only
+// need to measure ONE character per (font, fontSize) combination and then
+// multiply by string length. This eliminates hundreds of ctx.measureText()
+// calls per frame for code blocks.
+const _charWidthCache = new Map();
+function getMonoCharWidth(ctx, font) {
+  let w = _charWidthCache.get(font);
+  if (w !== undefined) return w;
+  ctx.save();
+  ctx.font = font;
+  w = ctx.measureText('M').width;
+  ctx.restore();
+  _charWidthCache.set(font, w);
+  return w;
+}
+
+const _badgeWidthCache = new Map();
+function getBadgeWidth(ctx, text) {
+  let w = _badgeWidthCache.get(text);
+  if (w !== undefined) return w;
+  w = ctx.measureText(text).width;
+  _badgeWidthCache.set(text, w);
+  return w;
+}
 
 export function getAdaptiveStroke(color, isDark) {
   if (isDark && (color === '#1e1e1e' || color === '#000000' || color === '#252525')) {
@@ -867,6 +894,171 @@ export function renderElement(ctx, rc, el, isDark) {
       }
     }
     ctx.restore();
+  } else if (el.type === 'code') {
+    const b = getBounds(el);
+    const bw = Math.max(160, b.width);
+    const bh = Math.max(80, b.height);
+    const r = 10;
+    const headerH = 32;
+
+    const langId = el.language || 'javascript';
+    const langName = getLanguageName(langId);
+    const code = el.text || '';
+    const tokenizedLines = tokenizeCode(code, langId);
+    const fSize = el.fontSize || 13.5;
+    const fFamily = el.fontFamily || "'Fira Code', 'Courier New', monospace";
+    const lineHeight = Math.round(fSize * 1.55);
+
+    // Dynamic gutter based on line count
+    const numDigits = Math.max(2, String(tokenizedLines.length).length);
+    const gutterW = Math.max(34, numDigits * 9 + 16);
+
+    ctx.save();
+
+    // 1. Outer Container Card
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(b.x, b.y, bw, bh, r);
+    } else {
+      drawRoundRect(ctx, b.x, b.y, bw, bh, r);
+    }
+    const cardBg = el.fillColor && el.fillColor !== 'transparent' ? el.fillColor : CODE_THEME.bg;
+    ctx.fillStyle = cardBg;
+    ctx.fill();
+
+    // Card border
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = el.strokeColor && el.strokeColor !== '#252525' && el.strokeColor !== '#1e1e1e'
+      ? el.strokeColor
+      : CODE_THEME.border;
+    ctx.stroke();
+
+    // 2. Header Bar (Top 32px with rounded top corners)
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(b.x, b.y, bw, headerH, [r, r, 0, 0]);
+    } else {
+      ctx.rect(b.x, b.y, bw, headerH);
+    }
+    ctx.clip();
+    ctx.fillStyle = CODE_THEME.headerBg;
+    ctx.fillRect(b.x, b.y, bw, headerH);
+
+    // Separator line under header
+    ctx.strokeStyle = '#232730';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y + headerH);
+    ctx.lineTo(b.x + bw, b.y + headerH);
+    ctx.stroke();
+
+    // Mac-style Window Controls: 3 dots
+    const dotY = b.y + headerH / 2;
+    ctx.beginPath();
+    ctx.arc(b.x + 16, dotY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff5f56';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x + 28, dotY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffbd2e';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x + 40, dotY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#27c93f';
+    ctx.fill();
+
+    // Language Badge on the right
+    const badgeText = langName.toUpperCase();
+    ctx.font = "600 10.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const textW = getBadgeWidth(ctx, badgeText);
+    const badgeW = textW + 20;
+    const badgeH = 18;
+    const badgeX = b.x + bw - badgeW - 12;
+    const badgeY = b.y + (headerH - badgeH) / 2;
+
+    // Badge pill background
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+    } else {
+      ctx.rect(badgeX, badgeY, badgeW, badgeH);
+    }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.fill();
+
+    // Badge label
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
+    ctx.restore();
+
+    // 3. Line Number Gutter
+    const codeAreaH = bh - headerH;
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(b.x, b.y + headerH, gutterW, codeAreaH, [0, 0, 0, r]);
+    } else {
+      ctx.rect(b.x, b.y + headerH, gutterW, codeAreaH);
+    }
+    ctx.clip();
+    ctx.fillStyle = CODE_THEME.gutterBg;
+    ctx.fillRect(b.x, b.y + headerH, gutterW, codeAreaH);
+
+    // Gutter divider line
+    ctx.strokeStyle = '#232730';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(b.x + gutterW, b.y + headerH);
+    ctx.lineTo(b.x + gutterW, b.y + bh);
+    ctx.stroke();
+
+    // Line numbers
+    ctx.font = `400 ${fSize * 0.9}px ${fFamily}`;
+    ctx.fillStyle = CODE_THEME.gutterText;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+
+    const visibleLines = Math.floor((codeAreaH - 12) / lineHeight) + 1;
+    const totalLines = Math.min(tokenizedLines.length, visibleLines);
+    for (let li = 0; li < totalLines; li++) {
+      const lineY = b.y + headerH + 10 + li * lineHeight;
+      ctx.fillText(String(li + 1), b.x + gutterW - 8, lineY);
+    }
+    ctx.restore();
+
+    // 4. Code Syntax Highlighting Content
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(b.x + gutterW + 1, b.y + headerH + 1, bw - gutterW - 2, codeAreaH - 2);
+    ctx.clip();
+
+    const codeFont = `400 ${fSize}px ${fFamily}`;
+    ctx.font = codeFont;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+
+    // Use cached monospace char width instead of per-token measureText
+    const charW = getMonoCharWidth(ctx, codeFont);
+
+    const startCodeX = b.x + gutterW + 12;
+    for (let li = 0; li < totalLines; li++) {
+      const lineY = b.y + headerH + 10 + li * lineHeight;
+      let currX = startCodeX;
+      const tokens = tokenizedLines[li] || [];
+
+      for (let ti = 0; ti < tokens.length; ti++) {
+        const token = tokens[ti];
+        ctx.fillStyle = CODE_THEME[token.type] || CODE_THEME.plain;
+        ctx.fillText(token.text, currX, lineY);
+        currX += token.text.length * charW;
+      }
+    }
+
+    ctx.restore();
+    ctx.restore();
   } else if (el.type === 'text') {
     const fSize = el.fontSize || 24;
     const fFamily = el.fontFamily || "'Patrick Hand', cursive";
@@ -1010,22 +1202,66 @@ export function renderHoveredConnectionPoints(ctx, points, nearestPoint, isDark)
   ctx.restore();
 }
 
-export function drawGrid(ctx, viewWidth, viewHeight, zoom, scrollX, scrollY, isDark, showGrid = false, isBedtime = false) {
-  if (!showGrid) return;
-  const gridSize = 24;
-  const startX = Math.floor((-scrollX / zoom) / gridSize) * gridSize;
-  const startY = Math.floor((-scrollY / zoom) / gridSize) * gridSize;
-  const endX = startX + (viewWidth / zoom) + gridSize * 2;
-  const endY = startY + (viewHeight / zoom) + gridSize * 2;
+export function drawGrid(
+  ctx,
+  viewWidth,
+  viewHeight,
+  zoom = 1,
+  scrollX = 0,
+  scrollY = 0,
+  isDark = false,
+  showGrid = false,
+  isBedtime = false,
+  dpr = 1
+) {
+  if (!showGrid || viewWidth <= 0 || viewHeight <= 0) return;
 
-  // Tiny, low-contrast dots that do not interfere with handwriting
+  const resolvedDpr = dpr || (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
+  const BASE_GRID = 24;
+
+  // Dynamic Level of Detail:
+  // Step is the distance between dots on screen in CSS pixels
+  let effectiveGrid = BASE_GRID;
+  let step = effectiveGrid * zoom;
+
+  // When zooming out, thin out the grid to avoid dense clustering
+  while (step < 16) {
+    effectiveGrid *= 2;
+    step = effectiveGrid * zoom;
+  }
+  // When zooming in, subdivide if spacing becomes overly sparse
+  while (step > 80 && effectiveGrid > 12) {
+    effectiveGrid /= 2;
+    step = effectiveGrid * zoom;
+  }
+
+  // Exact screen offsets using true Euclidean modulo:
+  // Keeps the dots mathematically anchored to world canvas coordinates under ANY scroll or pan offset
+  const offsetX = ((scrollX % step) + step) % step;
+  const offsetY = ((scrollY % step) + step) % step;
+
+  ctx.save();
+
+  // Low-contrast, subtle dots tailored for all color modes
   ctx.fillStyle = isBedtime
-    ? (isDark ? 'rgba(230, 220, 184, 0.14)' : 'rgba(120, 100, 70, 0.15)')
-    : (isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.10)');
-  for (let x = startX; x < endX; x += gridSize) {
-    for (let y = startY; y < endY; y += gridSize) {
-      ctx.fillRect(x, y, 1, 1);
+    ? (isDark ? 'rgba(235, 215, 175, 0.10)' : 'rgba(130, 100, 60, 0.11)')
+    : (isDark ? 'rgba(255, 255, 255, 0.085)' : 'rgba(0, 0, 0, 0.085)');
+
+  // Perfectly circular dots aligned to physical device pixels to eliminate uneven subpixel blurring
+  const dotRadius = 1.0;
+  const TWO_PI = Math.PI * 2;
+
+  ctx.beginPath();
+  for (let sx = offsetX; sx <= viewWidth + 0.5; sx += step) {
+    const px = Math.round(sx * resolvedDpr) / resolvedDpr;
+    for (let sy = offsetY; sy <= viewHeight + 0.5; sy += step) {
+      const py = Math.round(sy * resolvedDpr) / resolvedDpr;
+      ctx.moveTo(px + dotRadius, py);
+      ctx.arc(px, py, dotRadius, 0, TWO_PI);
     }
   }
+  ctx.fill();
+
+  ctx.restore();
 }
 

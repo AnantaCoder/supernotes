@@ -243,19 +243,24 @@ function getFile(id) {
 
   let elements = [];
   try {
-    elements = JSON.parse(r.elements);
+    const parsed = JSON.parse(r.elements);
+    elements = Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     elements = [];
   }
+
+  const scrollX = Number(r.scroll_x);
+  const scrollY = Number(r.scroll_y);
+  const zoom = Number(r.zoom);
 
   return {
     id: r.id,
     name: r.name,
     folderId: r.folder_id || null,
     elements: elements,
-    scrollX: Number(r.scroll_x) || 0,
-    scrollY: Number(r.scroll_y) || 0,
-    zoom: Number(r.zoom) || 1,
+    scrollX: Number.isFinite(scrollX) ? scrollX : 0,
+    scrollY: Number.isFinite(scrollY) ? scrollY : 0,
+    zoom: (Number.isFinite(zoom) && zoom > 0) ? zoom : 1,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     deletedAt: r.deleted_at || null
@@ -264,13 +269,17 @@ function getFile(id) {
 
 function createFile(data) {
   const database = getDb();
-  const id = data.id || ('file-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
-  const name = (data.name || 'Untitled Diagram').trim();
-  const folderId = data.folderId !== undefined ? (data.folderId || null) : null;
-  const elements = JSON.stringify(data.elements || []);
-  const scrollX = Number(data.scrollX) || 0;
-  const scrollY = Number(data.scrollY) || 0;
-  const zoom = Number(data.zoom) || 1;
+  const id = (data.id && typeof data.id === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(data.id))
+    ? data.id
+    : ('file-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+  const rawName = typeof data.name === 'string' ? data.name : (data.name ? String(data.name) : 'Untitled Diagram');
+  const name = rawName.slice(0, 150).trim() || 'Untitled Diagram';
+  const folderId = (data.folderId && typeof data.folderId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(data.folderId)) ? data.folderId : null;
+  const elementsArr = Array.isArray(data.elements) ? data.elements : [];
+  const elements = JSON.stringify(elementsArr);
+  const scrollX = Number.isFinite(Number(data.scrollX)) ? Number(data.scrollX) : 0;
+  const scrollY = Number.isFinite(Number(data.scrollY)) ? Number(data.scrollY) : 0;
+  const zoom = (Number.isFinite(Number(data.zoom)) && Number(data.zoom) > 0) ? Number(data.zoom) : 1;
   const now = Date.now();
   const createdAt = data.createdAt || now;
   const updatedAt = data.updatedAt || now;
@@ -296,7 +305,7 @@ function updateFile(id, data) {
 
   // Safety Disaster Recovery: If existing note has elements and incoming data clears it, save snapshot
   if (existing.elements && existing.elements.length > 0) {
-    if (data.elements !== undefined && data.elements.length === 0) {
+    if (data.elements !== undefined && Array.isArray(data.elements) && data.elements.length === 0) {
       try {
         const backupId = 'snap-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
         database.prepare('INSERT INTO file_backups (id, file_id, name, elements, created_at) VALUES (?, ?, ?, ?, ?)').run(
@@ -306,12 +315,15 @@ function updateFile(id, data) {
     }
   }
 
-  const name = data.name !== undefined ? data.name.trim() : existing.name;
+  const rawName = data.name !== undefined ? (typeof data.name === 'string' ? data.name : String(data.name)) : existing.name;
+  const name = rawName ? rawName.slice(0, 150).trim() : existing.name;
   const folderId = data.folderId !== undefined ? (data.folderId || null) : existing.folderId;
-  const elements = data.elements !== undefined ? JSON.stringify(data.elements) : JSON.stringify(existing.elements);
-  const scrollX = data.scrollX !== undefined ? Number(data.scrollX) : existing.scrollX;
-  const scrollY = data.scrollY !== undefined ? Number(data.scrollY) : existing.scrollY;
-  const zoom = data.zoom !== undefined ? Number(data.zoom) : existing.zoom;
+  const elements = data.elements !== undefined
+    ? JSON.stringify(Array.isArray(data.elements) ? data.elements : [])
+    : JSON.stringify(existing.elements);
+  const scrollX = (data.scrollX !== undefined && Number.isFinite(Number(data.scrollX))) ? Number(data.scrollX) : existing.scrollX;
+  const scrollY = (data.scrollY !== undefined && Number.isFinite(Number(data.scrollY))) ? Number(data.scrollY) : existing.scrollY;
+  const zoom = (data.zoom !== undefined && Number.isFinite(Number(data.zoom)) && Number(data.zoom) > 0) ? Number(data.zoom) : existing.zoom;
   const updatedAt = Date.now();
   const deletedAt = data.deletedAt !== undefined ? data.deletedAt : existing.deletedAt;
 
@@ -422,8 +434,11 @@ function emptyTrash() {
 }
 
 function backupDatabase(targetPath) {
-  if (!targetPath || typeof targetPath !== 'string' || !targetPath.toLowerCase().endsWith('.db')) {
-    throw new Error('Invalid backup target path: must end with .db');
+  if (!targetPath || typeof targetPath !== 'string') {
+    throw new Error('Invalid backup target path: must be a string');
+  }
+  if (/[\0\r\n;]/.test(targetPath) || !targetPath.toLowerCase().endsWith('.db')) {
+    throw new Error('Invalid backup target path: must end with .db and contain no control characters or semicolons');
   }
   const database = getDb();
   try {

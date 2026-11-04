@@ -629,6 +629,7 @@ export function App() {
         else if (key === 'q') setCurrentTool('queue');
         else if (key === 'w') setCurrentTool('cloud');
         else if (key === 'm') setCurrentTool('cache');
+        else if (key === 'k' || key === '0') setCurrentTool('code');
         else if (key === 't' || key === '8') setCurrentTool('text');
       }
     };

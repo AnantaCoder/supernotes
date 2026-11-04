@@ -472,6 +472,13 @@ export function useFileManager({ onFileLoaded }) {
   const importFile = (fileObj) => {
     if (!fileObj) return;
 
+    // Security check: limit imported JSON size to 15MB
+    const MAX_IMPORT_SIZE = 15 * 1024 * 1024;
+    if (fileObj.size > MAX_IMPORT_SIZE) {
+      alert('File too large to import (maximum 15MB allowed).');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -494,16 +501,31 @@ export function useFileManager({ onFileLoaded }) {
           'rectangle', 'roundRect', 'ellipse', 'diamond',
           'line', 'arrow', 'freehand', 'highlighter',
           'stickyNote', 'text', 'image',
-          'cylinder', 'queue', 'cloud', 'cache'
+          'cylinder', 'queue', 'cloud', 'cache', 'code'
         ];
         for (let i = 0; i < rawElements.length; i++) {
           const item = rawElements[i];
           if (item && typeof item === 'object' && allowedTypes.includes(item.type)) {
-            validElements.push(createElement(item.type, item));
+            // Defensively sanitize props: exclude prototype pollution keys
+            const cleanProps = {};
+            for (const key of Object.keys(item)) {
+              if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+              cleanProps[key] = item[key];
+            }
+            // For images, ensure safe URL protocol
+            if (cleanProps.type === 'image' && cleanProps.dataUrl) {
+              const url = String(cleanProps.dataUrl).trim();
+              const isSafe = url.startsWith('data:image/') || url.startsWith('blob:') || url.startsWith('https://') || url.startsWith('http://');
+              if (!isSafe) {
+                delete cleanProps.dataUrl;
+              }
+            }
+            validElements.push(createElement(cleanProps.type, cleanProps));
           }
         }
 
-        const fileName = (data.name || fileObj.name.replace(/\.(json|supernotes)$/i, '') || 'Imported Note').trim();
+        const rawName = (data && data.name) ? String(data.name) : fileObj.name.replace(/\.(json|supernotes)$/i, '');
+        const fileName = (rawName || 'Imported Note').trim().slice(0, 100);
         await createFile(fileName, validElements);
       } catch (err) {
         alert('Invalid diagram file: ' + (err.message || 'Check JSON schema.'));

@@ -12,25 +12,35 @@ function getMeasurementContext() {
 }
 
 export function createElement(type, props = {}, defaultState = {}) {
+  const isCode = type === 'code';
   const defaults = {
     id: generateId(),
     type: type,
     x: 0,
     y: 0,
-    width: 0,
-    height: 0,
+    width: isCode ? 340 : 0,
+    height: isCode ? 180 : 0,
     points: [],
-    text: props.text !== undefined ? props.text : (type === 'cache' ? 'Redis' : ''),
-    strokeColor: defaultState.strokeColor || '#252525',
-    fillColor: defaultState.noFill === false ? (defaultState.fillColor || '#a5d8ff') : 'transparent',
-    strokeWidth: defaultState.strokeWidth || 2,
-    fontSize: defaultState.fontSize || 24,
-    fontFamily: defaultState.fontFamily || "'Patrick Hand', cursive",
+    text: props.text !== undefined ? props.text : (
+      type === 'cache'
+        ? 'Redis'
+        : (isCode
+            ? '// Quick snippet\nfunction greet(name) {\n  console.log(`Hello, ${name}!`);\n  return true;\n}'
+            : '')
+    ),
+    language: props.language || (isCode ? 'javascript' : undefined),
+    strokeColor: defaultState.strokeColor || (isCode ? '#282c34' : '#252525'),
+    fillColor: defaultState.noFill === false
+      ? (defaultState.fillColor || '#a5d8ff')
+      : (isCode ? '#181824' : 'transparent'),
+    strokeWidth: defaultState.strokeWidth || (isCode ? 1.5 : 2),
+    fontSize: defaultState.fontSize || (isCode ? 13.5 : 24),
+    fontFamily: defaultState.fontFamily || (isCode ? "'Fira Code', 'Courier New', monospace" : "'Patrick Hand', cursive"),
     bold: props.bold !== undefined ? !!props.bold : !!defaultState.isBold,
     italic: props.italic !== undefined ? !!props.italic : !!defaultState.isItalic,
     underline: props.underline !== undefined ? !!props.underline : !!defaultState.isUnderline,
     opacity: 1,
-    roughness: defaultState.roughness !== undefined ? defaultState.roughness : 1.5,
+    roughness: defaultState.roughness !== undefined ? defaultState.roughness : (isCode ? 0 : 1.5),
     seed: Math.floor(Math.random() * 2147483647),
     cornerRadius: 16
   };
@@ -38,7 +48,7 @@ export function createElement(type, props = {}, defaultState = {}) {
 }
 
 export function getWrappedTextLines(el, explicitMaxWidth = null) {
-  const rawText = el.text || '';
+  const rawText = typeof el.text === 'string' ? el.text : (el.text != null ? String(el.text) : '');
   const lines = rawText.split('\n');
 
   // If no explicit max width is given and this is an auto-width text box,
@@ -163,10 +173,11 @@ export function getBounds(el) {
       if (el.controlPoint.x > maxX) maxX = el.controlPoint.x;
       if (el.controlPoint.y > maxY) maxY = el.controlPoint.y;
     }
-    if ((el.type === 'line' || el.type === 'arrow') && el.text && el.text.trim() && el.points.length >= 2) {
+    if ((el.type === 'line' || el.type === 'arrow') && el.text != null && String(el.text).trim() && el.points.length >= 2) {
       const mid = getArrowMidpoint(el);
       const fSize = el.fontSize || 16;
-      const hw = Math.max(30, (el.text.length * fSize * 0.4) + 16);
+      const textStr = String(el.text);
+      const hw = Math.max(30, (textStr.length * fSize * 0.4) + 16);
       const hh = Math.max(16, fSize * 0.8 + 10);
       if (mid.x - hw < minX) minX = mid.x - hw;
       if (mid.y - hh < minY) minY = mid.y - hh;
@@ -195,6 +206,16 @@ export function getBounds(el) {
     };
   }
 
+  if (el.type === 'code') {
+    const rawW = el.width !== undefined && el.width !== null && el.width !== 0 ? el.width : 340;
+    const rawH = el.height !== undefined && el.height !== null && el.height !== 0 ? el.height : 180;
+    const w = Math.max(160, Math.abs(rawW));
+    const h = Math.max(80, Math.abs(rawH));
+    const x = Math.min(el.x, el.x + (el.width || 0));
+    const y = Math.min(el.y, el.y + (el.height || 0));
+    return { x: x, y: y, width: w, height: h, x2: x + w, y2: y + h };
+  }
+
   const x = Math.min(el.x, el.x + (el.width || 0));
   const y = Math.min(el.y, el.y + (el.height || 0));
   const w = Math.abs(el.width || 0);
@@ -205,7 +226,7 @@ export function getBounds(el) {
 export function getConnectionPoints(el) {
   const CONNECTABLE = [
     'rectangle', 'roundRect', 'ellipse', 'diamond', 'stickyNote',
-    'cylinder', 'queue', 'cloud', 'cache'
+    'cylinder', 'queue', 'cloud', 'cache', 'code'
   ];
   if (!CONNECTABLE.includes(el.type)) return [];
   const b = getBounds(el);
@@ -224,11 +245,11 @@ export function hitTest(el, px, py, threshold = 10) {
 
   if (
     el.type === 'rectangle' || el.type === 'roundRect' || el.type === 'image' || el.type === 'stickyNote' ||
-    el.type === 'cylinder' || el.type === 'queue' || el.type === 'cloud' || el.type === 'cache'
+    el.type === 'cylinder' || el.type === 'queue' || el.type === 'cloud' || el.type === 'cache' || el.type === 'code'
   ) {
     if (
       el.fillColor !== 'transparent' || el.type === 'image' || el.type === 'stickyNote' ||
-      el.type === 'cylinder' || el.type === 'queue' || el.type === 'cloud' || el.type === 'cache'
+      el.type === 'cylinder' || el.type === 'queue' || el.type === 'cloud' || el.type === 'cache' || el.type === 'code'
     ) {
       return px >= b.x - threshold && px <= b.x2 + threshold && py >= b.y - threshold && py <= b.y2 + threshold;
     }
@@ -267,10 +288,11 @@ export function hitTest(el, px, py, threshold = 10) {
     const p2 = el.points[el.points.length - 1];
 
     // Check hit on middle label if present
-    if (el.text && el.text.trim()) {
+    if (el.text != null && String(el.text).trim()) {
       const mid = getArrowMidpoint(el);
       const fSize = el.fontSize || 16;
-      const halfW = Math.max(30, (el.text.length * fSize * 0.4) + 16);
+      const textStr = String(el.text);
+      const halfW = Math.max(30, (textStr.length * fSize * 0.4) + 16);
       const halfH = Math.max(16, fSize * 0.8 + 10);
       if (Math.abs(px - mid.x) <= halfW && Math.abs(py - mid.y) <= halfH) {
         return true;

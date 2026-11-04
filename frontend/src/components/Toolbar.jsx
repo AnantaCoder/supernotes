@@ -227,6 +227,18 @@ export function Toolbar({
           </svg>
         </button>
 
+        <button
+          className={`tool-btn ${currentTool === 'code' ? 'active' : ''}`}
+          onClick={() => onSetTool('code')}
+          title="Code Block / Snippet (K or 0)"
+          aria-label="Code snippet tool"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="16 18 22 12 16 6" />
+            <polyline points="8 6 2 12 8 18" />
+          </svg>
+        </button>
+
         {/* <button
           className={`tool-btn ${currentTool === 'text' ? 'active' : ''}`}
           onClick={() => onSetTool('text')}

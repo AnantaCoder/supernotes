@@ -71,6 +71,7 @@ export function StatusBar({
         tool === 'queue' ? 'Queue / Broker (Kafka/RabbitMQ)' :
         tool === 'cloud' ? 'Cloud / CDN Node' :
         tool === 'cache' ? 'Cache (Redis)' :
+        tool === 'code' ? 'Code Snippet' :
         (tool.charAt(0).toUpperCase() + tool.slice(1))
       ) : 'Select');
   const zoomPct = Math.round(zoom * 100) + '%';

@@ -23,6 +23,7 @@ import {
   PASTEL_PALETTE,
   resolvePastelTint
 } from '../utils/renderer.js';
+import { SUPPORTED_LANGUAGES, detectLanguage, getLanguageName } from '../utils/syntax.js';
 
 const CALLOUT_PRESETS = [
   { id: 'Bottleneck', label: '⚠️ Bottleneck', tint: 'rose' },
@@ -157,6 +158,7 @@ export function Canvas({
 
   // Text editor overlay state
   const [textEdit, setTextEdit] = useState(null);
+  const [copiedCodeFeedback, setCopiedCodeFeedback] = useState(false);
 
   // Snap overlay state (tracked as refs to avoid re-renders during drawing)
   const snapStateRef = useRef({
@@ -218,6 +220,12 @@ export function Canvas({
     };
   }, [scrollX, scrollY, zoom]);
 
+  // Cached RoughJS instance – reuse across frames to avoid re-creation overhead
+  const rcRef = useRef(null);
+
+  // Active editing element ID: only changes when opening/closing the editor, NOT on keystrokes
+  const editingElementId = textEdit?.element?.id || null;
+
   // Main canvas render loop
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -232,6 +240,8 @@ export function Canvas({
     if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
       canvas.width = width * dpr;
       canvas.height = height * dpr;
+      // RoughJS canvas needs to be re-created when the underlying canvas size changes
+      rcRef.current = null;
     }
 
     ctx.save();
@@ -239,29 +249,54 @@ export function Canvas({
     ctx.clearRect(0, 0, width, height);
 
     // 1. Grid
-    drawGrid(ctx, width, height, zoom, scrollX, scrollY, isDark, showGrid, isBedtime);
+    drawGrid(ctx, width, height, zoom, scrollX, scrollY, isDark, showGrid, isBedtime, dpr);
 
     // 2. Viewport transform
     ctx.translate(scrollX, scrollY);
     ctx.scale(zoom, zoom);
 
-    const rc = rough.canvas(canvas);
+    if (!rcRef.current) {
+      rcRef.current = rough.canvas(canvas);
+    }
+    const rc = rcRef.current;
+
+    // ── Viewport culling bounds (in canvas/world coordinates) ──
+    // Only elements overlapping this rectangle will be rendered.
+    const vpLeft   = -scrollX / zoom;
+    const vpTop    = -scrollY / zoom;
+    const vpRight  = vpLeft + width / zoom;
+    const vpBottom = vpTop + height / zoom;
+    const CULL_PAD = 60; // extra padding so edges don't pop
 
     // 3. Render all elements
     // Render highlighters first so they sit underneath regular ink/shapes
     const highlighters = [];
     const regularElements = [];
     for (let i = 0; i < elements.length; i++) {
-      if (textEdit && textEdit.element && textEdit.element.id === elements[i].id) {
-        if (elements[i].type === 'stickyNote' || ['cylinder', 'queue', 'cloud', 'cache'].includes(elements[i].type)) {
-          regularElements.push({ ...elements[i], text: '' });
+      const el = elements[i];
+
+      if (editingElementId && el.id === editingElementId) {
+        if (el.type === 'stickyNote' || el.type === 'code' || ['cylinder', 'queue', 'cloud', 'cache'].includes(el.type)) {
+          regularElements.push({ ...el, text: '' });
         }
         continue;
       }
-      if (elements[i].type === 'highlighter') {
-        highlighters.push(elements[i]);
+
+      // Viewport culling: skip elements fully outside the visible area
+      const eb = getBounds(el);
+      if (
+        eb.x + eb.width  < vpLeft   - CULL_PAD ||
+        eb.x             > vpRight  + CULL_PAD ||
+        eb.y + eb.height < vpTop    - CULL_PAD ||
+        eb.y             > vpBottom + CULL_PAD
+      ) {
+        continue;
+      }
+
+      if (el.type === 'highlighter') {
+        highlighters.push(el);
       } else {
-        regularElements.push(elements[i]);
+        regularElements.push(el);
       }
     }
 
@@ -279,8 +314,11 @@ export function Canvas({
         renderHoveredConnectionPoints(ctx, snap.hoveredPoints, snap.nearestPoint, isDark);
       }
 
-      // 5. Selection
-      const selectedElements = elements.filter(el => selectedIds.has(el.id));
+      // 5. Selection (use loop instead of .filter() to avoid per-frame allocation)
+      const selectedElements = [];
+      for (let i = 0; i < elements.length; i++) {
+        if (selectedIds.has(elements[i].id)) selectedElements.push(elements[i]);
+      }
       renderSelection(ctx, selectedElements, isDark);
 
       // 6. Marquee
@@ -290,7 +328,7 @@ export function Canvas({
     }
 
     ctx.restore();
-  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, isBedtime, showGrid, textEdit, snapVersion, isReadingMode]);
+  }, [elements, selectedIds, zoom, scrollX, scrollY, isDark, isBedtime, showGrid, editingElementId, snapVersion, isReadingMode]);
 
   useEffect(() => {
     let animId = requestAnimationFrame(renderCanvas);
@@ -332,6 +370,10 @@ export function Canvas({
 
   useEffect(() => {
     if (textareaRef.current && textEdit) {
+      if (textEdit.element && textEdit.element.type === 'code') {
+        // Code textarea is sized cleanly via inline CSS bounds to prevent layout thrashing
+        return;
+      }
       const textarea = textareaRef.current;
       textarea.style.height = 'auto';
       if (textEdit.element && textEdit.element.type === 'stickyNote') {
@@ -385,12 +427,13 @@ export function Canvas({
       : (current.text || '');
     const trimmed = actualText.trim();
     const isSticky = current.element && current.element.type === 'stickyNote';
+    const isCode = current.element && current.element.type === 'code';
     const isArch = current.element && ['cylinder', 'queue', 'cloud', 'cache'].includes(current.element.type);
     const isArrow = current.element && (current.element.type === 'arrow' || current.element.type === 'line');
 
     try {
       if (current.element) {
-        if (trimmed === '' && !isSticky && !isArch && !isArrow) {
+        if (trimmed === '' && !isSticky && !isArch && !isArrow && !isCode) {
           const nextElements = elements.filter(el => el.id !== current.element.id);
           const nextSelected = new Set(selectedIds);
           nextSelected.delete(current.element.id);
@@ -414,6 +457,16 @@ export function Canvas({
                 const topPad = clone.calloutTag ? 46 : 28;
                 const neededHeight = Math.max(160, topPad + lines.length * fSize * 1.35 + 8);
                 clone.height = Math.max(clone.height || 160, neededHeight);
+              } else if (isCode) {
+                clone.text = actualText;
+                if (!clone.language || clone.language === 'javascript') {
+                  const detected = detectLanguage(actualText);
+                  if (detected) clone.language = detected;
+                }
+                const codeLines = actualText.split('\n');
+                const fSize = clone.fontSize || 13.5;
+                const neededH = Math.max(160, 42 + codeLines.length * Math.round(fSize * 1.55) + 16);
+                clone.height = Math.max(clone.height || 180, neededH);
               } else if (isArch || isArrow) {
                 clone.text = actualText;
               } else {
@@ -480,6 +533,12 @@ export function Canvas({
       if (existingEl.type === 'stickyNote') {
         posX = existingEl.x + 14;
         posY = existingEl.y + (existingEl.calloutTag ? 36 : 14);
+      } else if (existingEl.type === 'code') {
+        const b = getBounds(existingEl);
+        const numDigits = Math.max(2, String((existingEl.text || '').split('\n').length).length);
+        const gutterW = Math.max(34, numDigits * 9 + 16);
+        posX = b.x + gutterW + 12;
+        posY = b.y + 32 + 10;
       } else if (['cylinder', 'queue', 'cloud', 'cache'].includes(existingEl.type)) {
         const b = getBounds(existingEl);
         if (existingEl.type === 'cache') {
@@ -692,6 +751,17 @@ export function Canvas({
         text: 'Redis',
         fillColor: noFill ? 'transparent' : (fillColor !== 'transparent' ? fillColor : (isDark ? '#3B1F24' : '#FEF2F2'))
       }, { strokeColor, fillColor, noFill, strokeWidth });
+    } else if (currentTool === 'code') {
+      newEl = createElement('code', {
+        x: pt.x,
+        y: pt.y,
+        width: 0,
+        height: 0,
+        language: 'javascript',
+        text: '// Write or paste code here\nfunction calculate() {\n  return 42;\n}',
+        fillColor: '#181824',
+        strokeColor: '#282c34'
+      }, { strokeColor, fillColor, strokeWidth });
     } else if (currentTool === 'stickyNote') {
       const defaultBg = isDark ? '#36301A' : '#FEF08A';
       const defaultBorder = isDark ? '#786624' : '#EAB308';
@@ -830,12 +900,15 @@ export function Canvas({
 
     // Hover cursor updates
     if (!inter.isInteracting && currentTool === 'select' && canvasRef.current) {
-      const selected = elements.filter(el => selectedIds.has(el.id));
-      if (selected.length === 1) {
-        const handle = hitTestHandle(selected[0], pt.x, pt.y, 10 / zoom);
-        if (handle) {
-          canvasRef.current.style.cursor = handle.cursor || 'pointer';
-          return;
+      if (selectedIds.size === 1) {
+        const selId = selectedIds.values().next().value;
+        const selectedEl = elements.find(el => el.id === selId);
+        if (selectedEl) {
+          const handle = hitTestHandle(selectedEl, pt.x, pt.y, 10 / zoom);
+          if (handle) {
+            canvasRef.current.style.cursor = handle.cursor || 'pointer';
+            return;
+          }
         }
       }
       const hit = [...elements].reverse().find(el => hitTest(el, pt.x, pt.y, 8 / zoom));
@@ -958,7 +1031,7 @@ export function Canvas({
       const updated = elements.map(el => {
         if (el.id === dElId) {
           const clone = { ...el, points: el.points ? el.points.map(p => ({ ...p })) : [] };
-          if (['rectangle', 'roundRect', 'ellipse', 'diamond', 'stickyNote', 'cylinder', 'queue', 'cloud', 'cache'].includes(clone.type)) {
+          if (['rectangle', 'roundRect', 'ellipse', 'diamond', 'stickyNote', 'cylinder', 'queue', 'cloud', 'cache', 'code'].includes(clone.type)) {
             clone.width = pt.x - clone.x;
             clone.height = pt.y - clone.y;
           } else if (clone.type === 'line' || clone.type === 'arrow') {
@@ -1128,6 +1201,18 @@ export function Canvas({
           return;
         }
 
+        if (dEl.type === 'code') {
+          if (Math.abs(dEl.width) < 20 || Math.abs(dEl.height) < 20) {
+            dEl.width = 380;
+            dEl.height = 200;
+          }
+          normalizeElement(dEl);
+          onRecordHistory(elements);
+          onSetTool('select');
+          startTextEditing(dEl.x, dEl.y, dEl);
+          return;
+        }
+
         if (['cylinder', 'queue', 'cloud', 'cache'].includes(dEl.type)) {
           if (Math.abs(dEl.width) < 20 || Math.abs(dEl.height) < 20) {
             if (dEl.type === 'cylinder') { dEl.width = 140; dEl.height = 90; }
@@ -1223,13 +1308,15 @@ export function Canvas({
     if (isReadingMode) return;
     const pt = screenToCanvas(e.clientX, e.clientY);
     const hitEditable = [...elements].reverse().find(el =>
-      (el.type === 'text' || el.type === 'stickyNote' || el.type === 'arrow' || el.type === 'line' || ['cylinder', 'queue', 'cloud', 'cache'].includes(el.type)) &&
+      (el.type === 'text' || el.type === 'stickyNote' || el.type === 'code' || el.type === 'arrow' || el.type === 'line' || ['cylinder', 'queue', 'cloud', 'cache'].includes(el.type)) &&
       hitTest(el, pt.x, pt.y, 14 / zoom)
     );
 
     if (hitEditable) {
       if (hitEditable.type === 'stickyNote') {
         startTextEditing(hitEditable.x + 14, hitEditable.y + (hitEditable.calloutTag ? 36 : 14), hitEditable);
+      } else if (hitEditable.type === 'code') {
+        startTextEditing(hitEditable.x, hitEditable.y, hitEditable);
       } else if (hitEditable.type === 'cache') {
         const b = getBounds(hitEditable);
         startTextEditing(b.x + 8, b.y + 2, hitEditable);
@@ -1270,7 +1357,7 @@ export function Canvas({
   const activeSingleEl = selectedElements.length === 1 ? selectedElements[0] : null;
 
   let floatingBarPos = null;
-  if (activeSingleEl && activeSingleEl.type === 'stickyNote' && !textEdit) {
+  if (activeSingleEl && (activeSingleEl.type === 'stickyNote' || activeSingleEl.type === 'code') && !textEdit) {
     const b = getBounds(activeSingleEl);
     const screenTopLeft = canvasToContainer(b.x, b.y);
     const screenTopRight = canvasToContainer(b.x + b.width, b.y);
@@ -1288,6 +1375,40 @@ export function Canvas({
       y: clampedY
     };
   }
+
+  const handleSetCodeLanguage = (langKey) => {
+    if (!activeSingleEl || activeSingleEl.type !== 'code') return;
+    const updated = elements.map(el => {
+      if (el.id === activeSingleEl.id) {
+        return {
+          ...el,
+          language: langKey
+        };
+      }
+      return el;
+    });
+    onChangeElements(updated);
+    onRecordHistory(updated);
+  };
+
+  const handleCopyCode = async (codeText) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(codeText || '');
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = codeText || '';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedCodeFeedback(true);
+      setTimeout(() => setCopiedCodeFeedback(false), 1800);
+    } catch (err) {
+      console.warn('Failed to copy code snippet:', err);
+    }
+  };
 
   const handleSetStickyTint = (tintKey) => {
     if (!activeSingleEl || activeSingleEl.type !== 'stickyNote') return;
@@ -1400,6 +1521,64 @@ export function Canvas({
         </div>
       )}
 
+      {/* Floating Contextual Inspector for Code Blocks (Language Selector & Copy Code) */}
+      {!isReadingMode && floatingBarPos && activeSingleEl?.type === 'code' && !textEdit && (
+        <div
+          className="canvas-floating-inspector code-inspector"
+          style={{
+            left: `${floatingBarPos.x}px`,
+            top: `${floatingBarPos.y}px`
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="code-lang-selector-wrap" title="Programming Language">
+            <span className="code-lang-icon" aria-hidden="true">⌨</span>
+            <select
+              className="code-lang-select"
+              value={activeSingleEl.language || 'javascript'}
+              onChange={(e) => handleSetCodeLanguage(e.target.value)}
+              title="Select Programming Language"
+            >
+              {SUPPORTED_LANGUAGES.map(lang => {
+                const langId = typeof lang === 'object' ? lang.id : lang;
+                const langLabel = typeof lang === 'object' ? lang.name : getLanguageName(lang);
+                return (
+                  <option key={langId} value={langId}>
+                    {langLabel}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="floating-bar-divider" />
+
+          <button
+            className={`code-copy-btn ${copiedCodeFeedback ? 'copied' : ''}`}
+            onClick={() => handleCopyCode(activeSingleEl.text || '')}
+            title="Copy code to clipboard"
+          >
+            {copiedCodeFeedback ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Copied!</span>
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {!isReadingMode && textEdit && (
         <textarea
           id="text-input"
@@ -1407,20 +1586,24 @@ export function Canvas({
           className={
             textEdit.element?.type === 'stickyNote'
               ? 'sticky-note-input'
-              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
-                  ? 'arch-label-input'
-                  : (['arrow', 'line'].includes(textEdit.element?.type) ? 'arrow-label-input' : ''))
+              : (textEdit.element?.type === 'code'
+                  ? 'code-block-input'
+                  : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
+                      ? 'arch-label-input'
+                      : (['arrow', 'line'].includes(textEdit.element?.type) ? 'arrow-label-input' : '')))
           }
           value={textEdit.text}
           autoFocus
           placeholder={
             textEdit.element?.type === 'stickyNote'
               ? "Write a note..."
-              : (textEdit.element?.type === 'cache'
-                  ? "Redis..."
-                  : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
-                      ? "Component Label..."
-                      : (['arrow', 'line'].includes(textEdit.element?.type) ? "Label..." : "Type text here...")))
+              : (textEdit.element?.type === 'code'
+                  ? "// Write or paste code here..."
+                  : (textEdit.element?.type === 'cache'
+                      ? "Redis..."
+                      : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
+                          ? "Component Label..."
+                          : (['arrow', 'line'].includes(textEdit.element?.type) ? "Label..." : "Type text here..."))))
           }
           style={{
             display: 'block',
@@ -1428,57 +1611,70 @@ export function Canvas({
             top: `${textEditorPos.y}px`,
             width: textEdit.element?.type === 'stickyNote'
               ? `${Math.max(80, (textEdit.element.width - 28) * zoom)}px`
-              : (textEdit.element?.type === 'cache'
-                  ? `${Math.max(90, Math.min(220, (textEdit.element.width - 16) * zoom))}px`
-                  : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
-                      ? `${Math.max(80, (textEdit.element.width - 24) * zoom)}px`
-                      : (['arrow', 'line'].includes(textEdit.element?.type)
-                          ? `${Math.max(70, Math.min(260, (textEdit.text.length + 3) * 11 * zoom))}px`
-                          : (textEdit.element?.hasCustomWidth && textEdit.element.width > 20
-                              ? `${textEdit.element.width * zoom}px`
-                              : undefined)))),
+              : (textEdit.element?.type === 'code'
+                  ? `${Math.max(180, (textEdit.element.width - 56) * zoom)}px`
+                  : (textEdit.element?.type === 'cache'
+                      ? `${Math.max(90, Math.min(220, (textEdit.element.width - 16) * zoom))}px`
+                      : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
+                          ? `${Math.max(80, (textEdit.element.width - 24) * zoom)}px`
+                          : (['arrow', 'line'].includes(textEdit.element?.type)
+                              ? `${Math.max(70, Math.min(260, (textEdit.text.length + 3) * 11 * zoom))}px`
+                              : (textEdit.element?.hasCustomWidth && textEdit.element.width > 20
+                                  ? `${textEdit.element.width * zoom}px`
+                                  : undefined))))),
             height: textEdit.element?.type === 'stickyNote'
               ? `${Math.max(50, (textEdit.element.height - (textEdit.element.calloutTag ? 46 : 28)) * zoom)}px`
-              : (textEdit.element?.type === 'cache'
-                  ? `${Math.max(20, 22 * zoom)}px`
-                  : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
-                      ? `${Math.max(30, 32 * zoom)}px`
-                      : (['arrow', 'line'].includes(textEdit.element?.type)
-                          ? `${Math.max(26, 28 * zoom)}px`
-                          : undefined))),
-            fontSize: `${(textEdit.element?.type === 'cache' ? 12 : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round((textEdit.element.height || 80) * 0.2))) : (['arrow', 'line'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round(textEdit.fontSize || 16))) : textEdit.fontSize))) * zoom}px`,
-            fontFamily: ['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
-              ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-              : textEdit.fontFamily,
+              : (textEdit.element?.type === 'code'
+                  ? `${Math.max(60, (textEdit.element.height - 48) * zoom)}px`
+                  : (textEdit.element?.type === 'cache'
+                      ? `${Math.max(20, 22 * zoom)}px`
+                      : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type)
+                          ? `${Math.max(30, 32 * zoom)}px`
+                          : (['arrow', 'line'].includes(textEdit.element?.type)
+                              ? `${Math.max(26, 28 * zoom)}px`
+                              : undefined)))),
+            fontSize: `${(textEdit.element?.type === 'code' ? (textEdit.element.fontSize || 13.5) : (textEdit.element?.type === 'cache' ? 12 : (['cylinder', 'queue', 'cloud'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round((textEdit.element.height || 80) * 0.2))) : (['arrow', 'line'].includes(textEdit.element?.type) ? Math.max(12, Math.min(18, Math.round(textEdit.fontSize || 16))) : textEdit.fontSize)))) * zoom}px`,
+            fontFamily: textEdit.element?.type === 'code'
+              ? "'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, Monaco, monospace"
+              : (['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
+                  ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                  : textEdit.fontFamily),
             fontWeight: ['cylinder', 'queue', 'cloud', 'cache'].includes(textEdit.element?.type)
               ? 'bold'
               : (textEdit.bold ? 'bold' : 'normal'),
             fontStyle: textEdit.italic ? 'italic' : 'normal',
             textDecoration: textEdit.underline ? 'underline' : 'none',
             textAlign: ['cylinder', 'cloud', 'queue', 'arrow', 'line'].includes(textEdit.element?.type) ? 'center' : 'left',
-            color: textEdit.element?.type === 'stickyNote'
-              ? (resolvePastelTint(textEdit.element.tint || textEdit.element.fillColor, isDark).textColor)
-              : textEditorStroke
+            color: textEdit.element?.type === 'code'
+              ? '#dcdfe4'
+              : (textEdit.element?.type === 'stickyNote'
+                  ? (resolvePastelTint(textEdit.element.tint || textEdit.element.fillColor, isDark).textColor)
+                  : textEditorStroke)
           }}
           onChange={(e) => {
             const nextVal = e.target.value;
-            setTextEdit(prev => {
-              if (!prev) return null;
-              const next = { ...prev, text: nextVal };
-              if (prev.element && prev.element.type === 'stickyNote' && textareaRef.current) {
-                const ta = textareaRef.current;
-                const pad = prev.element.calloutTag ? 46 : 28;
-                const contentH = Math.ceil(ta.scrollHeight / zoom);
-                if (contentH + pad > (prev.element.height || 160)) {
-                  prev.element.height = contentH + pad;
-                }
-              }
-              return next;
-            });
+            setTextEdit(prev => prev ? { ...prev, text: nextVal } : null);
           }}
           onBlur={commitTextEditor}
           onKeyDown={(e) => {
             e.stopPropagation();
+            if (textEdit.element?.type === 'code' && e.key === 'Tab') {
+              e.preventDefault();
+              const ta = textareaRef.current;
+              if (ta) {
+                const start = ta.selectionStart;
+                const end = ta.selectionEnd;
+                const currentVal = ta.value;
+                const nextVal = currentVal.substring(0, start) + '  ' + currentVal.substring(end);
+                setTextEdit(prev => prev ? { ...prev, text: nextVal } : null);
+                requestAnimationFrame(() => {
+                  if (ta) {
+                    ta.selectionStart = ta.selectionEnd = start + 2;
+                  }
+                });
+              }
+              return;
+            }
             if ((e.ctrlKey || e.metaKey)) {
               const k = e.key.toLowerCase();
               if (k === 'b') { setTextEdit(prev => ({ ...prev, bold: !prev.bold })); e.preventDefault(); return; }

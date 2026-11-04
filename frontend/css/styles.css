@@ -1720,6 +1720,44 @@ html, body {
   text-align: center !important;
 }
 
+#text-input.code-block-input {
+  box-sizing: border-box !important;
+  background-color: transparent !important;
+  color: #dcdfe4 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, Monaco, monospace !important;
+  tab-size: 2 !important;
+  white-space: pre !important;
+  overflow: auto !important;
+  resize: none !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  line-height: 1.55 !important;
+  letter-spacing: 0px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+}
+
+#text-input.code-block-input::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+#text-input.code-block-input::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+#text-input.code-block-input::placeholder {
+  color: #636d83 !important;
+  font-style: italic !important;
+}
+
 /* Floating Contextual Inspector (Sticky Notes & Architecture Shapes) */
 .canvas-floating-inspector {
   position: absolute;
@@ -1837,6 +1875,79 @@ html, body {
 .callout-pill-clear-btn:hover {
   background-color: var(--danger-subtle);
   color: var(--danger);
+}
+
+/* Code Block Floating Contextual Inspector */
+.code-inspector {
+  gap: 8px;
+  padding: 5px 10px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2), 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.code-lang-selector-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.code-lang-icon {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.code-lang-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 22px 3px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition-fast);
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 12px;
+}
+
+.code-lang-select:hover {
+  border-color: var(--accent);
+  background-color: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.code-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.code-copy-btn:hover {
+  background-color: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.code-copy-btn.copied {
+  background-color: rgba(52, 168, 83, 0.15);
+  border-color: #34a853;
+  color: #34a853;
 }
 
 .reading-mode-btn.active {
